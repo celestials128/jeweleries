@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard/index'
 import Login from './pages/Login/index'
 import AdminBlog from './pages/AdminBlog/index'
 import BlogDetail from './pages/BlogDetail/index'
+import ProductDetail from './pages/ProductDetail/index'
 import './App.css'
 
 function AppContent({
@@ -54,6 +55,7 @@ function AppContent({
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/orders" element={<OrderHistory />} />
           <Route path="/blog/:id" element={<BlogDetail />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route
             path="/admin"
             element={

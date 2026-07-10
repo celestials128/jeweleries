@@ -227,6 +227,19 @@
   transition: all 0.2s ease;
 }
 
+.product-row-clickable {
+  cursor: pointer !important;
+}
+
+.product-row-clickable td {
+  cursor: pointer !important;
+}
+
+.product-row-clickable:hover {
+  background: #eef4ff !important;
+  box-shadow: inset 3px 0 0 #1e3a8a;
+}
+
 .table tbody tr:hover {
   background: #f8fafc;
 }

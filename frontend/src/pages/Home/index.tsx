@@ -87,21 +87,15 @@ export default function Home() {
         {products.length > 0 ? (
           <div className="featured-grid">
             {products.map(product => (
-              <div key={product.id} className="featured-card">
-                {product.imageUrl && <img src={product.imageUrl} alt={product.name} />}
-                <h3>{product.name}</h3>
-                <p>{product.description}</p>
-                <div className="featured-footer">
-                  <span className="price">${product.price.toFixed(2)}</span>
-                  <button 
-                    className="button button-primary"
-                    onClick={() => addToCart(product)}
-                    disabled={product.stock === 0}
-                  >
-                    Add to Cart
-                  </button>
+              <Link key={product.id} to={`/products/${product.id}`} className="featured-card-link">
+                <div className="featured-card">
+                  {product.imageUrl
+                    ? <img src={product.imageUrl} alt={product.name} />
+                    : <div className="featured-card-no-img">✨</div>
+                  }
+                  <h3>{product.name}</h3>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : loading ? (
@@ -121,7 +115,7 @@ export default function Home() {
         { label: 'BRATARI', title: 'BIJUTERII DIN ARGINT' },
         { label: 'CERCEI', title: 'BIJUTERII DIN AUR' }
       ].map((category, idx) => (
-        <section key={idx} className="category-section" style={{ marginTop: idx > 0 ? '80px' : '60px' }}>
+        <section key={idx} className="category-section">
           <h2>{category.title}</h2>
           <div className="category-grid">
             {getCategoryProducts(idx).map((product, i) => (

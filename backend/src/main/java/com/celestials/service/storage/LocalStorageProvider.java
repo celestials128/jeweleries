@@ -5,7 +5,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,12 +22,10 @@ public class LocalStorageProvider implements StorageProvider {
     private String baseUrl;
 
     private Path getUploadPath() {
-        // Resolve the upload path - use absolute path if possible
         Path uploadPath = Paths.get(uploadPathConfig);
         if (!uploadPath.isAbsolute()) {
-            // Make it relative to user's home or /tmp for Docker
-            String tmpDir = System.getProperty("java.io.tmpdir");
-            uploadPath = Paths.get(tmpDir, "..", uploadPathConfig).normalize();
+            String userDir = System.getProperty("user.dir", ".");
+            uploadPath = Paths.get(userDir, uploadPathConfig).normalize();
         }
         return uploadPath;
     }

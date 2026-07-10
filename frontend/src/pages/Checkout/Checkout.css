@@ -1,91 +1,328 @@
-.checkout-container {
-  margin-top: 30px;
+.co-container {
+  max-width: 1100px;
 }
 
-.checkout-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  margin-top: 20px;
+.co-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: #1a2332;
+  letter-spacing: 1px;
+  margin-bottom: 0;
 }
 
-.order-summary,
-.payment-form {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(107, 90, 205, 0.08);
-  border: 1px solid rgba(107, 90, 205, 0.1);
+/* Summary */
+.co-summary {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.1);
+  border: 1px solid rgba(30, 58, 138, 0.1);
+  position: sticky;
+  top: 80px;
 }
 
-.order-summary h2,
-.payment-form h2 {
-  color: #1a1a3f;
-  font-size: 20px;
-  margin-top: 0;
+.co-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a2332;
+  margin-bottom: 18px;
+  letter-spacing: 0.5px;
 }
 
-.summary-item {
+.co-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.co-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 12px 0;
   border-bottom: 1px solid #f0f0f0;
-  color: #666;
 }
 
-.summary-total {
-  margin-top: 16px;
+.co-item:last-child {
+  border-bottom: none;
+}
+
+.co-item-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #475569;
+  flex: 1;
+}
+
+.co-item-meta {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2332;
+  white-space: nowrap;
+}
+
+.co-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 2px solid rgba(30, 58, 138, 0.1);
+  padding-top: 16px;
+  margin-top: 8px;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 800;
   background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  border-top: 2px solid #f0f0f0;
-  padding-top: 16px;
+  margin-bottom: 16px;
 }
 
-.card-element {
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  margin: 20px 0;
-  background: #fafbff;
-  transition: all 0.3s ease;
-}
-
-.card-element:focus-within {
-  border-color: #1e3a8a;
-  box-shadow: 0 0 0 3px rgba(107, 90, 205, 0.1);
-}
-
-.error-message {
-  background: #fee;
-  color: #c2185b;
-  padding: 12px;
-  border-radius: 6px;
-  margin-bottom: 15px;
-  border-left: 4px solid #c2185b;
-}
-
-.test-card {
+.co-secure-badge {
+  text-align: center;
   font-size: 12px;
-  color: #999;
-  margin-top: 15px;
-  padding: 12px;
-  background: #fafbff;
-  border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  color: #64748b;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
-#submit-btn {
-  width: 100%;
-  padding: 14px;
-  margin-top: 20px;
+/* Form card */
+.co-form-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 36px;
+  box-shadow: 0 8px 32px rgba(30, 58, 138, 0.1);
+  border: 1px solid rgba(30, 58, 138, 0.08);
+}
+
+/* Sections */
+.co-section {
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid rgba(30, 58, 138, 0.08);
+}
+
+.co-section:last-of-type {
+  border-bottom: none;
+}
+
+/* Account creation */
+.co-account-section {
+  background: rgba(30, 58, 138, 0.03);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(30, 58, 138, 0.08) !important;
+  border-bottom: 1px solid rgba(30, 58, 138, 0.08) !important;
+}
+
+.co-account-check .form-check-input:checked {
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
+.co-account-check label {
+  font-weight: 600;
+  color: #1a2332;
+}
+
+/* ── Card mockup ── */
+.co-card-mockup {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 60%, #312e81 100%);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: 0 20px 50px rgba(30, 58, 138, 0.35), 0 6px 18px rgba(0,0,0,0.2);
+  min-height: 190px;
+  transition: all 0.4s ease;
+}
+
+.co-card-mockup::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  pointer-events: none;
+}
+
+.co-card-mockup::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -40px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  pointer-events: none;
+}
+
+/* Brand colour variants */
+.co-card-brand-visa        { background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%); }
+.co-card-brand-mastercard  { background: linear-gradient(135deg, #7c3aed 0%, #1e1b4b 100%); }
+.co-card-brand-amex        { background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%); }
+.co-card-brand-discover    { background: linear-gradient(135deg, #b45309 0%, #78350f 100%); }
+
+.co-card-mockup-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.co-card-chip {
+  width: 46px;
+  height: 34px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);
+}
+
+.co-card-chip-inner {
+  width: 30px;
+  height: 22px;
+  border: 1.5px solid rgba(180,130,20,0.6);
+  border-radius: 4px;
+  background: linear-gradient(135deg, #fcd34d 0%, #d97706 100%);
+}
+
+.co-card-brand-icon {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.9);
+  text-align: right;
+}
+
+.co-card-number-display {
+  font-size: 20px;
+  letter-spacing: 3px;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 24px;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.co-card-mockup-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.co-card-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 4px;
+}
+
+.co-card-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.5px;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.co-card-expiry-group {
+  text-align: right;
+}
+
+/* Split Stripe fields */
+.co-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.co-stripe-field {
+  position: relative;
+  padding: 13px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafbff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.co-stripe-field:focus-within {
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+  background: #ffffff;
+}
+
+.co-cvc-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.co-cvc-field > :first-child {
+  flex: 1;
+}
+
+.co-cvc-icon {
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+.co-test-card {
+  font-size: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 4px;
+}
+
+/* Pay button */
+.co-pay-btn {
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  border: none;
+  box-shadow: 0 6px 20px rgba(30, 58, 138, 0.3);
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+.co-pay-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(30, 58, 138, 0.4);
+}
+
+.co-pay-btn:disabled {
+  opacity: 0.7;
 }
 
 @media (max-width: 768px) {
-  .checkout-content {
-    grid-template-columns: 1fr;
+  .co-form-card {
+    padding: 20px;
+  }
+
+  .co-summary {
+    position: static;
   }
 }

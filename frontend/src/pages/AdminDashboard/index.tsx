@@ -56,7 +56,9 @@ function getProductImageUrls(product: Product): string[] {
 
 function getUploadedUrl(data: any): string | null {
   if (!data) return null
-  return data.url || data.imageUrl || data.location || data.path || null
+  if (typeof data === 'string' && data.length > 0) return data
+  if (data.data && typeof data.data === 'string') return data.data
+  return data.url || data.imageUrl || data.fileUrl || data.location || data.path || data.uri || null
 }
 
 export default function AdminDashboard() {
@@ -103,25 +105,15 @@ export default function AdminDashboard() {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    const newImages: FormImage[] = []
-    Array.from(files).forEach((file, idx) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const preview = String(reader.result || '')
-        newImages.push({
-          id: `new-${Date.now()}-${idx}-${file.name}`,
-          url: preview,
-          isNew: true,
-          file
-        })
+    const newImages: FormImage[] = Array.from(files).map((file, idx) => ({
+      id: `new-${Date.now()}-${idx}-${file.name}`,
+      url: URL.createObjectURL(file),
+      isNew: true,
+      file
+    }))
 
-        if (newImages.length === files.length) {
-          setImages(prev => [...prev, ...newImages])
-        }
-      }
-      reader.readAsDataURL(file)
-    })
-
+    // Append to end of existing previewed files
+    setImages(prev => [...prev, ...newImages])
     e.target.value = ''
   }
 
@@ -156,7 +148,9 @@ export default function AdminDashboard() {
       }
 
       const uploadResponse = await uploadAPI.uploadImage(image.file)
+      console.log('[Upload response]', uploadResponse.data)
       const uploadedUrl = getUploadedUrl(uploadResponse.data)
+      console.log('[Resolved upload URL]', uploadedUrl)
 
       if (!uploadedUrl) {
         throw new Error('Upload completed but no image URL was returned by backend.')
@@ -184,15 +178,17 @@ export default function AdminDashboard() {
 
       if (editing) {
         await productAPI.update(editing, productData)
+        // Update in place so the product keeps its position in the list
+        const updatedProduct = { ...productData, id: editing }
+        setProducts(prev => prev.map(p => p.id === editing ? updatedProduct : p))
         setSuccess('Product updated successfully!')
         toast.success('Produsul a fost actualizat.')
       } else {
         await productAPI.create(productData)
         setSuccess('Product created successfully!')
         toast.success('Produsul a fost creat.')
+        fetchProducts()
       }
-
-      fetchProducts()
       setForm(EMPTY_FORM)
       setImages([])
       setEditing(null)
@@ -274,7 +270,6 @@ export default function AdminDashboard() {
       <Row className="mb-4">
         <Col>
           <h1 className="admin-title">Admin Dashboard - Product Management</h1>
-          <p className="text-muted">Manage products, images, and stock.</p>
         </Col>
       </Row>
 
@@ -460,7 +455,12 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {paginatedProducts.map(product => (
-                        <tr key={product.id}>
+                        <tr
+                          key={product.id}
+                          className="product-row-clickable"
+                          onClick={() => handleEdit(product)}
+                          title="Click to edit"
+                        >
                           <td>
                             <div>
                               <strong>{product.name}</strong>
@@ -475,24 +475,14 @@ export default function AdminDashboard() {
                               {product.stock} units
                             </Badge>
                           </td>
-                          <td>
-                            <div className="btn-group-admin">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() => handleEdit(product)}
-                                className="me-2"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleDelete(product.id!)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                          <td onClick={e => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              onClick={() => handleDelete(product.id!)}
+                            >
+                              Delete
+                            </Button>
                           </td>
                         </tr>
                       ))}

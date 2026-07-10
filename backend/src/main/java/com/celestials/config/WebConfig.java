@@ -11,8 +11,8 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve files from /uploads directory (persistent volume in docker-compose)
+        // Serve files from current upload path and legacy absolute /uploads path.
         registry.addResourceHandler("/uploads/**")
-            .addResourceLocations("file:uploads/");
+            .addResourceLocations("file:uploads/", "file:/uploads/");
     }
 }

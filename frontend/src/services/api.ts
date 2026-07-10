@@ -37,20 +37,21 @@ export const uploadAPI = {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('directory', 'products')
-    
+
     const uploadClient = axios.create({
-      baseURL: `${API_URL}/api`,
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      baseURL: `${API_URL}/api`
+      // Do NOT set Content-Type here — browser must set it automatically
+      // with the correct multipart boundary for the server to parse the file
     })
-    
+
     uploadClient.interceptors.request.use(config => {
       const token = localStorage.getItem('token')
-      if(token) config.headers.Authorization = `Bearer ${token}`
+      if (token) config.headers.Authorization = `Bearer ${token}`
+      // Ensure Content-Type is not overridden by a default JSON header
+      delete config.headers['Content-Type']
       return config
     })
-    
+
     return uploadClient.post('/upload', formData)
   }
 }

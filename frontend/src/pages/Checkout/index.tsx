@@ -1,168 +1,346 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Container, Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap'
+import { Container, Row, Col, Form, Button, Spinner } from 'react-bootstrap'
+import {
+  Elements,
+  CardNumberElement, CardExpiryElement, CardCvcElement,
+  useStripe, useElements
+} from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
 import { toast } from 'react-toastify'
-import { orderAPI, stripeAPI } from '../../services/api'
+import { orderAPI, stripeAPI, authAPI } from '../../services/api'
 import './Checkout.css'
 
-declare global {
-  interface Window {
-    Stripe: any
-  }
+const stripePromise = loadStripe(
+  (import.meta as any).env?.VITE_STRIPE_PK || 'pk_test_4eC39HqLyjWDarhtT657B3h5'
+)
+
+interface CartItem {
+  id: number
+  name: string
+  price: number
+  quantity: number
 }
 
-export default function Checkout() {
-  const [cartItems, setCartItems] = useState<any[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+interface BillingInfo {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  address: string
+  city: string
+}
+
+const EMPTY_BILLING: BillingInfo = {
+  firstName: '', lastName: '', email: '', phone: '', address: '', city: ''
+}
+
+const stripeStyle = {
+  base: {
+    fontSize: '16px',
+    color: '#1a2332',
+    fontFamily: '"Lato", sans-serif',
+    fontSmoothing: 'antialiased',
+    '::placeholder': { color: '#94a3b8' }
+  },
+  invalid: { color: '#dc2626' }
+}
+
+/* ── Inner form (needs stripe/elements context) ── */
+function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: number }) {
+  const stripe = useStripe()
+  const elements = useElements()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    setCartItems(cart)
-    const sum = cart.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0)
-    setTotal(sum)
-  }, [])
+  const [billing, setBilling] = useState<BillingInfo>(EMPTY_BILLING)
+  const [createAccount, setCreateAccount] = useState(false)
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleCheckout = async () => {
-    if(!localStorage.getItem('token')){
-      toast.info('Te rugam sa te autentifici pentru a finaliza comanda.')
-      navigate('/login')
+  const handleBillingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBilling(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!stripe || !elements) return
+
+    const cardElement = elements.getElement(CardNumberElement)
+    if (!cardElement) return
+
+    // Validate password upfront if account creation requested
+    if (createAccount && (!password || password.length < 6)) {
+      toast.error('Parola trebuie sa aiba cel putin 6 caractere.')
       return
     }
 
     setLoading(true)
-    setError('')
 
     try {
-      // Create order
-      const orderRes = await orderAPI.create(cartItems.map(item => ({
-        productId: item.id,
-        quantity: item.quantity
-      })))
-
-      const orderId = orderRes.data.id
-
-      // Create Stripe payment intent
+      // 1. Create Stripe payment intent
       const intentRes = await stripeAPI.createPaymentIntent(Math.round(total * 100))
       const clientSecret = intentRes.data.clientSecret
 
-      // Load Stripe
-      const script = document.createElement('script')
-      script.src = 'https://js.stripe.com/v3/'
-      script.onload = () => {
-        const stripe = window.Stripe('pk_test_4eC39HqLyjWDarhtT657B3h5')
-        const elements = stripe.elements()
-        const cardElement = elements.create('card')
-        const cardContainer = document.getElementById('card-element')
-        if(cardContainer) cardElement.mount(cardContainer)
-
-        const submitButton = document.getElementById('submit-btn') as HTMLButtonElement
-        if(submitButton){
-          submitButton.addEventListener('click', async () => {
-            const { paymentIntent, error: paymentError } = await stripe.confirmCardPayment(clientSecret, {
-              payment_method: {
-                card: cardElement,
-                billing_details: { name: 'Customer' }
-              }
-            })
-
-            if(paymentError){
-              setError(paymentError.message)
-              toast.error(paymentError.message)
-            } else if(paymentIntent && paymentIntent.status === 'succeeded'){
-              // Update order to PAID
-              await orderAPI.updateStatus(orderId, 'PAID')
-              localStorage.removeItem('cart')
-              window.dispatchEvent(new Event('cart:updated'))
-              toast.success('Plata a fost procesata cu succes!')
-              navigate('/orders')
+      // 2. Confirm card payment
+      const { paymentIntent, error: stripeErr } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: `${billing.firstName} ${billing.lastName}`.trim(),
+            email: billing.email,
+            phone: billing.phone || undefined,
+            address: {
+              line1: billing.address,
+              city: billing.city
             }
-          })
+          }
         }
+      })
+
+      if (stripeErr) {
+        toast.error(stripeErr.message || 'Eroare la procesarea platii.')
+        setLoading(false)
+        return
       }
-      document.head.appendChild(script)
-    } catch(err: any){
-      const message = err.response?.data?.error || 'Checkout failed'
-      setError(message)
-      toast.error(message)
+
+      if (paymentIntent?.status === 'succeeded') {
+        // 3. Payment succeeded — now optionally create account
+        if (createAccount) {
+          try {
+            await authAPI.register(billing.email, password)
+            const loginRes = await authAPI.login(billing.email, password)
+            const { token, role } = loginRes.data
+            localStorage.setItem('token', token)
+            localStorage.setItem('role', role || '')
+            window.dispatchEvent(new Event('auth:updated'))
+            toast.success('Cont creat cu succes!')
+          } catch (regErr: any) {
+            // Account creation failed after payment — warn but don't block
+            const msg = regErr.response?.data?.message || regErr.response?.data?.error || 'Contul nu a putut fi creat, dar plata a fost procesata.'
+            toast.warn(msg)
+          }
+        }
+
+        // 4. Create order record if authenticated
+        if (localStorage.getItem('token')) {
+          try {
+            const orderRes = await orderAPI.create(
+              cartItems.map(item => ({ productId: item.id, quantity: item.quantity }))
+            )
+            if (orderRes.data?.id) {
+              await orderAPI.updateStatus(orderRes.data.id, 'PAID')
+            }
+          } catch {
+            // Payment succeeded but order record failed — not blocking
+          }
+        }
+
+        localStorage.removeItem('cart')
+        window.dispatchEvent(new Event('cart:updated'))
+        toast.success('Plata efectuata cu succes! Multumim!')
+        navigate(localStorage.getItem('token') ? '/orders' : '/')
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'A aparut o eroare.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Container className="py-5">
-      <h1 className="mb-5" style={{ color: '#2a2a2a', fontSize: '36px', letterSpacing: '2px' }}>
-        💳 Finalizare Comanda
-      </h1>
-      
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
-      
-      <Row>
-        <Col lg={5}>
-          <div className="p-4 border rounded" style={{ backgroundColor: 'rgba(166, 124, 82, 0.05)', borderColor: 'rgba(166, 124, 82, 0.1)' }}>
-            <h4 className="mb-4">Rezumat Comanda</h4>
-            {cartItems.map(item => (
-              <Row key={item.id} className="mb-3 pb-3" style={{ borderBottom: '1px solid rgba(166, 124, 82, 0.1)' }}>
-                <Col xs={8}>
-                  <p className="mb-0 fw-600">{item.name}</p>
-                  <small className="text-muted">Cantitate: {item.quantity}</small>
-                </Col>
-                <Col xs={4} className="text-end">
-                  <p className="mb-0" style={{ color: '#a67c52', fontWeight: '700' }}>
-                    ${(item.price * item.quantity).toFixed(2)}
-                  </p>
-                </Col>
-              </Row>
-            ))}
-            <div className="mt-4 pt-3" style={{ borderTop: '2px solid #a67c52' }}>
-              <Row>
-                <Col xs={8}>
-                  <h5 className="mb-0">Total:</h5>
-                </Col>
-                <Col xs={4} className="text-end">
-                  <h4 style={{ color: '#a67c52', margin: '0' }}>
-                    ${total.toFixed(2)}
-                  </h4>
-                </Col>
-              </Row>
+    <Form onSubmit={handleSubmit} noValidate>
+      {/* Billing */}
+      <div className="co-section">
+        <h5 className="co-section-title">📋 Informatii Facturare</h5>
+        <Row className="g-3">
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Prenume *</Form.Label>
+              <Form.Control name="firstName" value={billing.firstName} onChange={handleBillingChange} required placeholder="Ion" />
+            </Form.Group>
+          </Col>
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Nume *</Form.Label>
+              <Form.Control name="lastName" value={billing.lastName} onChange={handleBillingChange} required placeholder="Popescu" />
+            </Form.Group>
+          </Col>
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Email *</Form.Label>
+              <Form.Control type="email" name="email" value={billing.email} onChange={handleBillingChange} required placeholder="exemplu@email.com" />
+            </Form.Group>
+          </Col>
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Telefon</Form.Label>
+              <Form.Control name="phone" value={billing.phone} onChange={handleBillingChange} placeholder="+40 700 000 000" />
+            </Form.Group>
+          </Col>
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Adresa *</Form.Label>
+              <Form.Control name="address" value={billing.address} onChange={handleBillingChange} required placeholder="Strada, Nr." />
+            </Form.Group>
+          </Col>
+          <Col sm={6}>
+            <Form.Group>
+              <Form.Label>Oras *</Form.Label>
+              <Form.Control name="city" value={billing.city} onChange={handleBillingChange} required placeholder="Bucuresti" />
+            </Form.Group>
+          </Col>
+        </Row>
+      </div>
+
+      {/* Optional account creation */}
+      <div className="co-section co-account-section">
+        <Form.Check
+          type="checkbox"
+          id="create-account"
+          label="Doresc sa-mi creez un cont Celestials"
+          checked={createAccount}
+          onChange={e => setCreateAccount(e.target.checked)}
+          className="co-account-check"
+        />
+        {createAccount && (
+          <Form.Group className="mt-3">
+            <Form.Label>Parola *</Form.Label>
+            <Form.Control
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Minim 6 caractere"
+              minLength={6}
+            />
+            <Form.Text className="text-muted">
+              Contul va fi creat cu adresa de email de mai sus.
+            </Form.Text>
+          </Form.Group>
+        )}
+      </div>
+
+      {/* Card payment */}
+      <div className="co-section">
+        <h5 className="co-section-title">💳 Detalii Card</h5>
+
+        {/* Split Stripe inputs */}
+        <div className="co-card-fields">
+          <Form.Group>
+            <Form.Label>Numar card</Form.Label>
+            <div className="co-stripe-field">
+              <CardNumberElement
+                options={{
+                  showIcon: false,
+                  style: stripeStyle
+                }}
+              />
+            </div>
+          </Form.Group>
+
+          <Row className="g-3 mt-0">
+            <Col xs={6}>
+              <Form.Group>
+                <Form.Label>Data expirare</Form.Label>
+                <div className="co-stripe-field">
+                  <CardExpiryElement options={{ style: stripeStyle }} />
+                </div>
+              </Form.Group>
+            </Col>
+            <Col xs={6}>
+              <Form.Group>
+                <Form.Label>CVC</Form.Label>
+                <div className="co-stripe-field co-cvc-field">
+                  <CardCvcElement options={{ style: stripeStyle }} />
+                  <span className="co-cvc-icon">🔒</span>
+                </div>
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+
+        <div className="co-test-card">
+          <strong>Card test:</strong> 4242 4242 4242 4242 &nbsp;·&nbsp; 12/34 &nbsp;·&nbsp; 123
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        className="w-100 co-pay-btn"
+        disabled={loading || !stripe}
+      >
+        {loading
+          ? <><Spinner animation="border" size="sm" className="me-2" />Se proceseaza...</>
+          : `🔒 Plateste $${total.toFixed(2)}`
+        }
+      </Button>
+    </Form>
+  )
+}
+
+/* ── Page wrapper ── */
+export default function Checkout() {
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [total, setTotal] = useState(0)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const raw = JSON.parse(localStorage.getItem('cart') || '[]')
+    const normalized: CartItem[] = (Array.isArray(raw) ? raw : []).map((item: any) => ({
+      ...item,
+      price: Number(item.price) || 0,
+      quantity: Math.max(1, Number(item.quantity) || 1)
+    }))
+    setCartItems(normalized)
+    setTotal(normalized.reduce((sum, item) => sum + item.price * item.quantity, 0))
+  }, [])
+
+  if (cartItems.length === 0) {
+    return (
+      <Container className="py-5 text-center">
+        <h2 style={{ color: '#1a2332' }}>Cosul tau este gol</h2>
+        <p className="text-muted mb-4">Adauga produse din colectia noastra.</p>
+        <Button variant="primary" onClick={() => navigate('/products')}>
+          Descopera produsele
+        </Button>
+      </Container>
+    )
+  }
+
+  return (
+    <Container className="py-5 co-container">
+      <h1 className="co-title">Finalizare Comanda</h1>
+
+      <Row className="g-4 mt-1 align-items-start">
+        {/* Summary sidebar */}
+        <Col lg={4}>
+          <div className="co-summary">
+            <h5 className="co-section-title">🛒 Rezumat</h5>
+            <div className="co-items">
+              {cartItems.map(item => (
+                <div key={item.id} className="co-item">
+                  <span className="co-item-name">{item.name}</span>
+                  <span className="co-item-meta">x{item.quantity} · ${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="co-total">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <div className="co-secure-badge">
+              🔒 Plata securizata prin Stripe
             </div>
           </div>
         </Col>
 
-        <Col lg={7} className="ps-lg-5 mt-4 mt-lg-0">
-          <div className="p-4 border rounded bg-white">
-            <h4 className="mb-4">Detalii Plata</h4>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Informații Card</Form.Label>
-                <div id="card-element" className="form-control" style={{ padding: '12px', minHeight: '40px' }}></div>
-              </Form.Group>
-              
-              <Button 
-                id="submit-btn"
-                variant="primary"
-                size="lg"
-                className="w-100 mb-3"
-                onClick={handleCheckout}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Se proceseaza...
-                  </>
-                ) : (
-                  '✓ Plateste Acum'
-                )}
-              </Button>
-              
-              <small className="text-muted d-block text-center">
-                <strong>Card test:</strong> 4242 4242 4242 4242 | Orice data viitoare | Orice CVC
-              </small>
-            </Form>
+        {/* Form */}
+        <Col lg={8}>
+          <div className="co-form-card">
+            <Elements stripe={stripePromise}>
+              <CheckoutForm cartItems={cartItems} total={total} />
+            </Elements>
           </div>
         </Col>
       </Row>
