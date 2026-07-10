@@ -11,6 +11,8 @@ interface Product {
   name: string
   description: string
   price: number
+  discountedPrice?: number
+  discountPercent?: number
   imageUrl?: string
   imageUrls?: string[]
   stock: number
@@ -48,12 +50,13 @@ export default function ProductDetail() {
 
   const addToCart = () => {
     if (!product) return
+    const effectivePrice = Number(product.discountedPrice || product.price || 0)
     const cart = JSON.parse(localStorage.getItem('cart') || '[]')
     const existing = cart.find((item: any) => String(item.id) === String(product.id))
     if (existing) {
       existing.quantity = Number(existing.quantity || 1) + 1
     } else {
-      cart.push({ ...product, price: Number(product.price) || 0, quantity: 1 })
+      cart.push({ ...product, price: effectivePrice, quantity: 1 })
     }
     localStorage.setItem('cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart:updated'))
@@ -110,7 +113,18 @@ export default function ProductDetail() {
         {/* Right: details */}
         <Col lg={6} className="pd-info">
           <h1 className="pd-name">{product.name}</h1>
-          <div className="pd-price">${Number(product.price).toFixed(2)}</div>
+          <div className="pd-price">
+            {Number(product.discountedPrice || 0) > 0 && Number(product.discountedPrice || 0) < Number(product.price) ? (
+              <>
+                <span style={{ textDecoration: 'line-through', color: '#6b7280', marginRight: 8, fontSize: '18px' }}>
+                  ${Number(product.price).toFixed(2)}
+                </span>
+                <span>${Number(product.discountedPrice).toFixed(2)}</span>
+              </>
+            ) : (
+              `$${Number(product.price).toFixed(2)}`
+            )}
+          </div>
 
           <div className="pd-stock">
             {product.stock > 0

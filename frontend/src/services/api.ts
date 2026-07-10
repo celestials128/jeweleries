@@ -1,7 +1,6 @@
 import axios from 'axios'
 
-const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080'
-const configuredApiUrl = (import.meta.env.VITE_API_URL || browserOrigin).replace(/\/+$/, '')
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
 
 export const API_URL = configuredApiUrl.endsWith('/api')
   ? configuredApiUrl.slice(0, -4)
@@ -28,11 +27,20 @@ export const authAPI = {
 }
 
 export const productAPI = {
-  getAll: () => apiClient.get('/products'),
+  getAll: (params?: { type?: string; section?: string; limit?: number }) => apiClient.get('/products', { params }),
+  getNewArrivals: (perType: number = 3) => apiClient.get('/products/new-arrivals', { params: { perType } }),
   getById: (id: number) => apiClient.get(`/products/${id}`),
   create: (product: any) => apiClient.post('/admin/products', product),
   update: (id: number, product: any) => apiClient.put(`/admin/products/${id}`, product),
   delete: (id: number) => apiClient.delete(`/admin/products/${id}`)
+}
+
+export const productTypeAPI = {
+  getAll: () => apiClient.get('/product-types'),
+  getAllAdmin: () => apiClient.get('/admin/product-types'),
+  create: (payload: { name: string }) => apiClient.post('/admin/product-types', payload),
+  update: (id: number, payload: { name: string }) => apiClient.put(`/admin/product-types/${id}`, payload),
+  delete: (id: number) => apiClient.delete(`/admin/product-types/${id}`)
 }
 
 export const blogAPI = {

@@ -98,8 +98,9 @@ export default function Cart() {
               <td className="fw-bold">${(Number(item.price) * Number(item.quantity)).toFixed(2)}</td>
               <td>
                 <Button 
-                  variant="danger"
+                  variant="outline-light"
                   size="sm"
+                  className="cart-remove-btn"
                   onClick={() => removeItem(item.id)}
                 >
                   Sterge

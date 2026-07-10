@@ -1,18 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { productAPI, uploadAPI } from '../../services/api'
+import { productAPI, productTypeAPI, uploadAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
+
+interface ProductType {
+  id: number
+  name: string
+  slug: string
+}
 
 interface Product {
   id?: number
   name: string
   description: string
   price: number
+  discountedPrice?: number
+  discountPercent?: number
   imageUrl?: string
   imageUrls?: string[]
   stock: number
+  handmade?: boolean
+  popular?: boolean
+  type?: ProductType
 }
 
 interface ProductForm {
@@ -20,6 +31,10 @@ interface ProductForm {
   description: string
   price: number
   stock: number
+  typeId: number | ''
+  discountPercent: number
+  handmade: boolean
+  popular: boolean
 }
 
 interface FormImage {
@@ -33,7 +48,11 @@ const EMPTY_FORM: ProductForm = {
   name: '',
   description: '',
   price: 0,
-  stock: 0
+  stock: 0,
+  typeId: '',
+  discountPercent: 0,
+  handmade: false,
+  popular: false
 }
 
 function getProductImageUrls(product: Product): string[] {
@@ -63,6 +82,11 @@ function getUploadedUrl(data: any): string | null {
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([])
+  const [types, setTypes] = useState<ProductType[]>([])
+  const [newTypeName, setNewTypeName] = useState('')
+  const [editingTypeId, setEditingTypeId] = useState<number | null>(null)
+  const [editingTypeName, setEditingTypeName] = useState('')
+
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
   const [editing, setEditing] = useState<number | null>(null)
@@ -70,18 +94,17 @@ export default function AdminDashboard() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [nameFilter, setNameFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [flagFilters, setFlagFilters] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'price' | 'stock'>('name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const itemsPerPage = 10
 
   useEffect(() => {
     fetchProducts()
+    fetchTypes()
   }, [])
-
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(products.length / itemsPerPage))
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [products.length, currentPage])
 
   const fetchProducts = () => {
     productAPI.getAll()
@@ -93,12 +116,32 @@ export default function AdminDashboard() {
       })
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const fetchTypes = () => {
+    productTypeAPI.getAllAdmin()
+      .then(res => setTypes(Array.isArray(res.data) ? res.data : []))
+      .catch(err => {
+        const message = err.response?.data?.error || 'Failed to fetch categories'
+        setError(message)
+        toast.error(message)
+      })
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setForm(prev => ({
       ...prev,
-      [name]: name === 'price' || name === 'stock' ? Number(value) : value
+      [name]:
+        name === 'price' || name === 'stock' || name === 'discountPercent'
+          ? Number(value)
+          : name === 'typeId'
+            ? (value === '' ? '' : Number(value))
+            : value
     }))
+  }
+
+  const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target
+    setForm(prev => ({ ...prev, [name]: checked }))
   }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +155,6 @@ export default function AdminDashboard() {
       file
     }))
 
-    // Append to end of existing previewed files
     setImages(prev => [...prev, ...newImages])
     e.target.value = ''
   }
@@ -148,19 +190,22 @@ export default function AdminDashboard() {
       }
 
       const uploadResponse = await uploadAPI.uploadImage(image.file)
-      console.log('[Upload response]', uploadResponse.data)
       const uploadedUrl = getUploadedUrl(uploadResponse.data)
-      console.log('[Resolved upload URL]', uploadedUrl)
-
       if (!uploadedUrl) {
         throw new Error('Upload completed but no image URL was returned by backend.')
       }
-
       result.push(uploadedUrl)
     }
 
     return result
   }
+
+  const computedDiscountedPrice = useMemo(() => {
+    const base = Number(form.price || 0)
+    const discount = Math.max(0, Math.min(99.99, Number(form.discountPercent || 0)))
+    if (base <= 0) return 0
+    return Number((base * ((100 - discount) / 100)).toFixed(2))
+  }, [form.price, form.discountPercent])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -169,26 +214,35 @@ export default function AdminDashboard() {
     setSuccess('')
 
     try {
+      if (form.typeId === '') {
+        throw new Error('Selecteaza o categorie pentru produs.')
+      }
+
       const finalImageUrls = await buildFinalImageUrls()
       const productData = {
-        ...form,
+        name: form.name,
+        description: form.description,
+        price: Number(form.price),
+        stock: Number(form.stock),
+        discountPercent: Number(form.discountPercent),
+        handmade: form.handmade,
+        popular: form.popular,
+        type: { id: Number(form.typeId) },
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls
       }
 
       if (editing) {
         await productAPI.update(editing, productData)
-        // Update in place so the product keeps its position in the list
-        const updatedProduct = { ...productData, id: editing }
-        setProducts(prev => prev.map(p => p.id === editing ? updatedProduct : p))
         setSuccess('Product updated successfully!')
         toast.success('Produsul a fost actualizat.')
       } else {
         await productAPI.create(productData)
         setSuccess('Product created successfully!')
         toast.success('Produsul a fost creat.')
-        fetchProducts()
       }
+
+      fetchProducts()
       setForm(EMPTY_FORM)
       setImages([])
       setEditing(null)
@@ -208,7 +262,11 @@ export default function AdminDashboard() {
       name: product.name || '',
       description: product.description || '',
       price: Number(product.price || 0),
-      stock: Number(product.stock || 0)
+      stock: Number(product.stock || 0),
+      typeId: product.type?.id || '',
+      discountPercent: Number(product.discountPercent || 0),
+      handmade: Boolean(product.handmade),
+      popular: Boolean(product.popular)
     })
     setImages(
       imageUrls.map((url, idx) => ({
@@ -218,18 +276,10 @@ export default function AdminDashboard() {
       }))
     )
     setEditing(product.id || null)
-
-    setTimeout(() => {
-      const formElement = document.querySelector('.admin-form-card')
-      if (formElement) {
-        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 0)
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this product?')) return
-
     try {
       await productAPI.delete(id)
       setSuccess('Product deleted successfully!')
@@ -252,13 +302,96 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const totalPages = Math.ceil(products.length / itemsPerPage)
+  const createType = async () => {
+    const name = newTypeName.trim()
+    if (!name) return
+    try {
+      await productTypeAPI.create({ name })
+      setNewTypeName('')
+      fetchTypes()
+      toast.success('Categoria a fost adaugata.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Nu s-a putut adauga categoria.')
+    }
+  }
+
+  const saveType = async (id: number) => {
+    const name = editingTypeName.trim()
+    if (!name) return
+    try {
+      await productTypeAPI.update(id, { name })
+      setEditingTypeId(null)
+      setEditingTypeName('')
+      fetchTypes()
+      toast.success('Categoria a fost actualizata.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Nu s-a putut actualiza categoria.')
+    }
+  }
+
+  const deleteType = async (id: number) => {
+    if (!confirm('Stergi aceasta categorie?')) return
+    try {
+      await productTypeAPI.delete(id)
+      fetchTypes()
+      toast.success('Categoria a fost stearsa.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Nu s-a putut sterge categoria.')
+    }
+  }
+
+  const filteredAndSortedProducts = useMemo(() => {
+    const normalizedNameFilter = nameFilter.trim().toLowerCase()
+    const filtered = products.filter(product => {
+      const matchesName =
+        normalizedNameFilter.length === 0 ||
+        product.name.toLowerCase().includes(normalizedNameFilter)
+      const matchesCategory =
+        categoryFilter === 'all' ||
+        String(product.type?.id || '') === categoryFilter
+      const matchesFlags = flagFilters.every(flag => {
+        if (flag === 'handmade') return Boolean(product.handmade)
+        if (flag === 'popular') return Boolean(product.popular)
+        if (flag === 'discounted') return Number(product.discountPercent || 0) > 0
+        return true
+      })
+      return matchesName && matchesCategory && matchesFlags
+    })
+
+    filtered.sort((a, b) => {
+      let comparison = 0
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name, 'ro', { sensitivity: 'base' })
+      } else if (sortBy === 'category') {
+        comparison = (a.type?.name || '').localeCompare(b.type?.name || '', 'ro', { sensitivity: 'base' })
+      } else if (sortBy === 'price') {
+        comparison = Number(a.discountedPrice || a.price || 0) - Number(b.discountedPrice || b.price || 0)
+      } else if (sortBy === 'stock') {
+        comparison = Number(a.stock || 0) - Number(b.stock || 0)
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+
+    return filtered
+  }, [products, nameFilter, categoryFilter, flagFilters, sortBy, sortDirection])
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredAndSortedProducts.length)
   const paginatedProducts = useMemo(
-    () => products.slice(startIndex, endIndex),
-    [products, startIndex, endIndex]
+    () => filteredAndSortedProducts.slice(startIndex, startIndex + itemsPerPage),
+    [filteredAndSortedProducts, startIndex]
   )
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [nameFilter, categoryFilter, flagFilters, sortBy, sortDirection])
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return
@@ -299,67 +432,73 @@ export default function AdminDashboard() {
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3">
                   <Form.Label>Product Name *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={form.name}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <Form.Control type="text" name="name" value={form.name} onChange={handleInputChange} required />
                 </Form.Group>
 
                 <Form.Group className="mb-3">
                   <Form.Label>Description</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    name="description"
-                    value={form.description}
-                    onChange={handleInputChange}
-                    rows={3}
-                  />
+                  <Form.Control as="textarea" name="description" value={form.description} onChange={handleInputChange} rows={3} />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Category *</Form.Label>
+                  <Form.Select name="typeId" value={form.typeId} onChange={handleInputChange} required>
+                    <option value="">Select category</option>
+                    {types.map(type => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                  </Form.Select>
                 </Form.Group>
 
                 <Row className="g-2">
                   <Col sm={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Price *</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="price"
-                        value={form.price}
-                        onChange={handleInputChange}
-                        step="0.01"
-                        min="0"
-                        required
-                      />
+                      <Form.Control type="number" name="price" value={form.price} onChange={handleInputChange} step="0.01" min="0" required />
                     </Form.Group>
                   </Col>
                   <Col sm={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Stock *</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="stock"
-                        value={form.stock}
-                        onChange={handleInputChange}
-                        min="0"
-                        required
-                      />
+                      <Form.Control type="number" name="stock" value={form.stock} onChange={handleInputChange} min="0" required />
                     </Form.Group>
                   </Col>
                 </Row>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Product Images</Form.Label>
-                  <Form.Control
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                  />
-                  <Form.Text className="text-muted d-block mt-2">
-                    Add images, reorder with arrows, and remove unwanted images.
+                  <Form.Label>Discount (%)</Form.Label>
+                  <Form.Control type="number" name="discountPercent" value={form.discountPercent} onChange={handleInputChange} min="0" max="99.99" step="0.01" />
+                  <Form.Text className="text-muted">
+                    Final price: ${computedDiscountedPrice.toFixed(2)}
                   </Form.Text>
+                </Form.Group>
+
+                <Row className="g-2">
+                  <Col sm={6}>
+                    <Form.Check
+                      type="switch"
+                      id="handmade-switch"
+                      name="handmade"
+                      checked={form.handmade}
+                      onChange={handleToggleChange}
+                      label="Handmade"
+                    />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Check
+                      type="switch"
+                      id="popular-switch"
+                      name="popular"
+                      checked={form.popular}
+                      onChange={handleToggleChange}
+                      label="Popular (manual)"
+                    />
+                  </Col>
+                </Row>
+
+                <Form.Group className="mb-3 mt-3">
+                  <Form.Label>Product Images</Form.Label>
+                  <Form.Control type="file" multiple accept="image/*" onChange={handleImageSelect} />
                 </Form.Group>
 
                 {images.length > 0 && (
@@ -370,32 +509,9 @@ export default function AdminDashboard() {
                         <div key={image.id} className="image-preview-item">
                           <img src={image.url} alt={`Preview ${index + 1}`} />
                           <div className="image-tools">
-                            <button
-                              type="button"
-                              className="btn-image-tool"
-                              onClick={() => moveImage(index, 'left')}
-                              disabled={index === 0}
-                              title="Move left"
-                            >
-                              {'<'}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-image-tool"
-                              onClick={() => moveImage(index, 'right')}
-                              disabled={index === images.length - 1}
-                              title="Move right"
-                            >
-                              {'>'}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-image-tool btn-remove-image"
-                              onClick={() => removeImage(index)}
-                              title="Remove"
-                            >
-                              x
-                            </button>
+                            <button type="button" className="btn-image-tool" onClick={() => moveImage(index, 'left')} disabled={index === 0}>{'<'}</button>
+                            <button type="button" className="btn-image-tool" onClick={() => moveImage(index, 'right')} disabled={index === images.length - 1}>{'>'}</button>
+                            <button type="button" className="btn-image-tool btn-remove-image" onClick={() => removeImage(index)}>x</button>
                           </div>
                         </div>
                       ))}
@@ -404,19 +520,8 @@ export default function AdminDashboard() {
                 )}
 
                 <div className="d-flex gap-2">
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    disabled={loading || !form.name}
-                    className="flex-grow-1 admin-btn-submit"
-                  >
-                    {loading ? (
-                      <>
-                        <Spinner size="sm" className="me-2" /> Saving...
-                      </>
-                    ) : (
-                      editing ? 'Update Product' : 'Create Product'
-                    )}
+                  <Button variant="primary" type="submit" disabled={loading || !form.name} className="flex-grow-1 admin-btn-submit">
+                    {loading ? <><Spinner size="sm" className="me-2" /> Saving...</> : (editing ? 'Update Product' : 'Create Product')}
                   </Button>
                   {editing && (
                     <Button variant="outline-secondary" onClick={handleCancel}>
@@ -427,79 +532,174 @@ export default function AdminDashboard() {
               </Form>
             </Card.Body>
           </Card>
+
+          <Card className="admin-card shadow-sm border-0 mt-4">
+            <Card.Header className="admin-card-header">
+              <Card.Title className="mb-0">Product Categories</Card.Title>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex gap-2 mb-3">
+                <Form.Control
+                  type="text"
+                  placeholder="Add new category (e.g. Bratari)"
+                  value={newTypeName}
+                  onChange={e => setNewTypeName(e.target.value)}
+                />
+                <Button onClick={createType}>Add</Button>
+              </div>
+              <div className="d-flex flex-column gap-2">
+                {types.map(type => (
+                  <div key={type.id} className="d-flex gap-2 align-items-center">
+                    {editingTypeId === type.id ? (
+                      <>
+                        <Form.Control value={editingTypeName} onChange={e => setEditingTypeName(e.target.value)} />
+                        <Button size="sm" onClick={() => saveType(type.id)}>Save</Button>
+                        <Button size="sm" variant="secondary" onClick={() => setEditingTypeId(null)}>Cancel</Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-grow-1">{type.name}</span>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() => {
+                            setEditingTypeId(type.id)
+                            setEditingTypeName(type.name)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="outline-danger" onClick={() => deleteType(type.id)}>
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card.Body>
+          </Card>
         </Col>
 
         <Col lg={7}>
           <Card className="admin-card shadow-sm border-0">
             <Card.Header className="admin-card-header">
-              <Card.Title className="mb-0">Products ({products.length})</Card.Title>
+              <Card.Title className="mb-0">Products ({filteredAndSortedProducts.length})</Card.Title>
             </Card.Header>
             <Card.Body className="table-responsive">
               {products.length === 0 ? (
                 <p className="text-muted text-center py-4">No products yet. Create one to get started.</p>
               ) : (
                 <>
+                  <div className="table-toolbar mb-3">
+                    <Form.Control
+                      type="text"
+                      placeholder="Filter by name..."
+                      value={nameFilter}
+                      onChange={e => setNameFilter(e.target.value)}
+                    />
+                    <Form.Select
+                      value={categoryFilter}
+                      onChange={e => setCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All categories</option>
+                      {types.map(type => (
+                        <option key={type.id} value={String(type.id)}>{type.name}</option>
+                      ))}
+                    </Form.Select>
+                    <Form.Select
+                      value={flagFilters[0] || 'all'}
+                      onChange={e => setFlagFilters(e.target.value === 'all' ? [] : [e.target.value])}
+                    >
+                      <option value="all">All flags</option>
+                      <option value="handmade">Handmade</option>
+                      <option value="popular">Popular</option>
+                      <option value="discounted">Discounted</option>
+                    </Form.Select>
+                    <Form.Select
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value as 'name' | 'category' | 'price' | 'stock')}
+                    >
+                      <option value="name">Sort by Name</option>
+                      <option value="category">Sort by Category</option>
+                      <option value="price">Sort by Price</option>
+                      <option value="stock">Sort by Stock</option>
+                    </Form.Select>
+                    <Button
+                      variant="outline-primary"
+                      onClick={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                    >
+                      {sortDirection === 'asc' ? 'Asc' : 'Desc'}
+                    </Button>
+                  </div>
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <span className="text-muted small">
-                      Showing {startIndex + 1} to {Math.min(endIndex, products.length)} of {products.length} products
+                      {filteredAndSortedProducts.length === 0
+                        ? 'No products match current filters'
+                        : `Showing ${startIndex + 1} to ${endIndex} of ${filteredAndSortedProducts.length} products`}
                     </span>
                   </div>
-                  <Table hover className="mb-4">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedProducts.map(product => (
-                        <tr
-                          key={product.id}
-                          className="product-row-clickable"
-                          onClick={() => handleEdit(product)}
-                          title="Click to edit"
-                        >
-                          <td>
-                            <div>
-                              <strong>{product.name}</strong>
-                              <div className="text-muted small">{product.description?.substring(0, 40)}</div>
-                            </div>
-                          </td>
-                          <td>
-                            <Badge bg="info">${Number(product.price).toFixed(2)}</Badge>
-                          </td>
-                          <td>
-                            <Badge bg={product.stock > 0 ? 'success' : 'danger'}>
-                              {product.stock} units
-                            </Badge>
-                          </td>
-                          <td onClick={e => e.stopPropagation()}>
-                            <Button
-                              size="sm"
-                              variant="outline-danger"
-                              onClick={() => handleDelete(product.id!)}
-                            >
-                              Delete
-                            </Button>
-                          </td>
+                  {paginatedProducts.length === 0 ? (
+                    <p className="text-muted text-center py-4">No products match current filters.</p>
+                  ) : (
+                    <Table hover className="mb-4">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Category</th>
+                          <th>Price</th>
+                          <th>Flags</th>
+                          <th>Stock</th>
+                          <th>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </Table>
+                      </thead>
+                      <tbody>
+                        {paginatedProducts.map(product => (
+                          <tr key={product.id} className="product-row-clickable" onClick={() => handleEdit(product)} title="Click to edit">
+                            <td>
+                              <div>
+                                <strong>{product.name}</strong>
+                                <div className="text-muted small">{product.description?.substring(0, 40)}</div>
+                              </div>
+                            </td>
+                            <td>{product.type?.name || '-'}</td>
+                            <td>
+                              <div>
+                                <span className="discount-price-badge">${Number(product.discountedPrice || product.price).toFixed(2)}</span>
+                                {Number(product.discountPercent || 0) > 0 && (
+                                  <div className="small discount-details">${Number(product.price).toFixed(2)} (-{Number(product.discountPercent).toFixed(0)}%)</div>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="d-flex gap-1 flex-wrap">
+                                {product.handmade && <Badge bg="secondary">Handmade</Badge>}
+                                {product.popular && <Badge bg="warning" text="dark">Popular</Badge>}
+                              </div>
+                            </td>
+                            <td>
+                              <Badge bg={product.stock > 0 ? 'success' : 'danger'}>
+                                {product.stock} units
+                              </Badge>
+                            </td>
+                            <td onClick={e => e.stopPropagation()}>
+                              <Button size="sm" variant="outline-danger" onClick={() => handleDelete(product.id!)}>
+                                Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  )}
 
-                  {totalPages > 1 && (
+                  {totalPages > 1 && paginatedProducts.length > 0 && (
                     <div className="d-flex justify-content-center">
                       <Pagination className="pagination-admin">
                         <Pagination.First onClick={() => handlePageChange(1)} disabled={currentPage === 1} />
                         <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                          <Pagination.Item
-                            key={page}
-                            active={page === currentPage}
-                            onClick={() => handlePageChange(page)}
-                          >
+                          <Pagination.Item key={page} active={page === currentPage} onClick={() => handlePageChange(page)}>
                             {page}
                           </Pagination.Item>
                         ))}

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
 import { productAPI, blogAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './Home.css'
@@ -10,6 +9,8 @@ interface Product {
   name: string
   description: string
   price: number
+  discountedPrice?: number
+  discountPercent?: number
   imageUrl?: string
   imageUrls?: string[]
   stock: number
@@ -25,24 +26,31 @@ interface BlogPost {
 }
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [promotions, setPromotions] = useState<Product[]>([])
+  const [handmade, setHandmade] = useState<Product[]>([])
+  const [popular, setPopular] = useState<Product[]>([])
   const [articles, setArticles] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [articlesLoading, setArticlesLoading] = useState(true)
 
   useEffect(() => {
-    productAPI.getAll()
-      .then(res => {
-        const data = Array.isArray(res.data) ? res.data : []
-        const normalized: Product[] = data.map((product: Product) => ({
-          ...product,
-          imageUrl: resolveMediaUrl(product.imageUrl || product.imageUrls?.[0] || '')
-        }))
-        setProducts(normalized.slice(0, 4))
-        setAllProducts(normalized)
+    Promise.all([
+      productAPI.getAll({ section: 'promotii', limit: 8 }),
+      productAPI.getAll({ section: 'handmade', limit: 8 }),
+      productAPI.getAll({ section: 'popular', limit: 8 })
+    ])
+      .then(([promoRes, handmadeRes, popularRes]) => {
+        const normalize = (items: any[]): Product[] =>
+          (Array.isArray(items) ? items : []).map((product: Product) => ({
+            ...product,
+            imageUrl: resolveMediaUrl(product.imageUrl || product.imageUrls?.[0] || '')
+          }))
+
+        setPromotions(normalize(promoRes.data))
+        setHandmade(normalize(handmadeRes.data))
+        setPopular(normalize(popularRes.data))
       })
-      .catch(err => console.error('Failed to fetch products', err))
+      .catch(err => console.error('Failed to fetch home products', err))
       .finally(() => setLoading(false))
   }, [])
 
@@ -56,93 +64,58 @@ export default function Home() {
       .finally(() => setArticlesLoading(false))
   }, [])
 
-  const addToCart = (product: Product) => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    const existing = cart.find((item: any) => String(item.id) === String(product.id))
-    if (existing) {
-      existing.quantity = Number(existing.quantity || 1) + 1
-    } else {
-      cart.push({
-        ...product,
-        price: Number(product.price) || 0,
-        quantity: 1
-      })
-    }
-    localStorage.setItem('cart', JSON.stringify(cart))
-    window.dispatchEvent(new Event('cart:updated'))
-    toast.success(`${product.name} a fost adaugat in cos.`)
-  }
-
-  const getCategoryProducts = (categoryIndex: number) => {
-    const start = categoryIndex * 6
-    const source = allProducts.length > 0 ? allProducts : products
-    return source.slice(start, start + 6)
-  }
+  const sections = [
+    { key: 'promotii', title: 'PROMOTII', products: promotions, link: '/products?section=promotii' },
+    { key: 'handmade', title: 'COLECTIA HANDMADE', products: handmade, link: '/products?section=handmade' },
+    { key: 'popular', title: 'PRODUSE POPULARE', products: popular, link: '/products?section=popular' }
+  ]
 
   return (
     <div className="home">
-      {/* Featured Products Section */}
-      <section className="featured-section">
-        <h2>PIESE CELESTIALE CU DIAMANTE NATURALE</h2>
-        {products.length > 0 ? (
-          <div className="featured-grid">
-            {products.map(product => (
-              <Link key={product.id} to={`/products/${product.id}`} className="featured-card-link">
-                <div className="featured-card">
-                  {product.imageUrl
-                    ? <img src={product.imageUrl} alt={product.name} />
-                    : <div className="featured-card-no-img">✨</div>
-                  }
+      {sections.map(section => (
+        <section key={section.key} className="featured-section">
+          <h2>{section.title}</h2>
+          {section.products.length > 0 ? (
+            <div className="featured-grid">
+              {section.products.map(product => (
+                <div key={product.id} className="featured-card">
+                  <Link to={`/products/${product.id}`}>
+                    {product.imageUrl
+                      ? <img src={product.imageUrl} alt={product.name} />
+                      : <div className="featured-card-no-img">✨</div>
+                    }
+                  </Link>
                   <h3>{product.name}</h3>
+                  <div className="featured-footer">
+                    <span className="price">${Number(product.discountedPrice || product.price).toFixed(2)}</span>
+                  </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        ) : loading ? (
-          <p>Loading products...</p>
-        ) : (
-          <p>Nu exista produse momentan.</p>
-        )}
-      </section>
-
-      {/* See More Button */}
-      <div className="see-more-container">
-        <Link to="/products" className="button button-outline">Vezi mai multe</Link>
-      </div>
-
-      {/* Category Sections */}
-      {[
-        { label: 'BRATARI', title: 'BIJUTERII DIN ARGINT' },
-        { label: 'CERCEI', title: 'BIJUTERII DIN AUR' }
-      ].map((category, idx) => (
-        <section key={idx} className="category-section">
-          <h2>{category.title}</h2>
-          <div className="category-grid">
-            {getCategoryProducts(idx).map((product, i) => (
-              <div key={product.id || i} className="category-card">
-                {product.imageUrl ? <img src={product.imageUrl} alt={product.name} /> : <div className="category-label">Fara imagine</div>}
-                <span className="category-label">{category.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="see-more-container">
-            <button className="button button-outline">Vezi toate</button>
-          </div>
+              ))}
+            </div>
+          ) : loading ? (
+            <p>Loading products...</p>
+          ) : (
+            <p>Nu exista produse momentan.</p>
+          )}
+          {section.products.length > 0 && (
+            <div className="see-more-container">
+              <Link to={section.link} className="button button-outline">Vezi mai multe</Link>
+            </div>
+          )}
         </section>
       ))}
 
-      {/* Features Section */}
       <section className="features-section">
         <h2>CE OFERIM?</h2>
         <div className="features">
           <div className="feature">
             <div className="feature-icon">📦</div>
             <h3>Livrare Premium Gratuita</h3>
-            <p>Experienta ineditã</p>
+            <p>Experienta inedita</p>
           </div>
           <div className="feature">
             <div className="feature-icon">⚡</div>
-            <h3>Livrare Rapidã Si Colet Asigurat</h3>
+            <h3>Livrare Rapida Si Colet Asigurat</h3>
             <p>Informatii Despre Livrare</p>
           </div>
           <div className="feature">
@@ -153,9 +126,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Blog Articles Section */}
       <section className="blog-section">
-        <h2>ARTICOLE CELESTIALE</h2>
+        <h2>ARTICOLE</h2>
         {articlesLoading ? (
           <p>Se incarca articolele...</p>
         ) : articles.length === 0 ? (
@@ -177,17 +149,6 @@ export default function Home() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Contact Section */}
-      <section className="contact-section">
-        <h2>AI INTREBARI? CONTACTEAZA-NE</h2>
-        <div className="contact-info">
-          <p>Luni - Vineri: 8:00 - 16:00</p>
-          <p>Tel:</p>
-          <p>Email:</p>
-          <p>Contact Celestials:</p>
-        </div>
       </section>
     </div>
   )

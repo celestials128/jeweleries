@@ -33,7 +33,7 @@ public class SecurityConfig {
     public SecurityConfig(
             UserDetailsService userDetailsService,
             JwtFilter jwtFilter,
-            @Value("${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}") String allowedOrigins){
+            @Value("${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173}") String allowedOrigins){
         this.userDetailsService = userDetailsService;
         this.jwtFilter = jwtFilter;
         this.allowedOrigins = allowedOrigins;
@@ -47,7 +47,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/blogs/published","/api/blogs/*","/api/stripe/**","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
+                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/product-types","/api/blogs/published","/api/blogs/*","/api/stripe/**","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
                 .anyRequest().authenticated()
             );
 
@@ -71,7 +71,7 @@ public class SecurityConfig {
             .map(String::trim)
             .filter(origin -> !origin.isBlank())
             .collect(Collectors.toList());
-        config.setAllowedOrigins(origins);
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(Arrays.asList(
             "Authorization",

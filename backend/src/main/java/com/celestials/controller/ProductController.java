@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -18,8 +19,33 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> list(){
+    public List<Product> list(
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "section", required = false) String section,
+            @RequestParam(value = "limit", required = false) Integer limit){
+        int safeLimit = limit == null ? 0 : Math.max(0, limit);
+        if(section != null && !section.isBlank()){
+            String normalized = section.trim().toLowerCase();
+            if("promotii".equals(normalized) || "promotions".equals(normalized)){
+                return productService.getPromotions(safeLimit);
+            }
+            if("handmade".equals(normalized)){
+                return productService.getHandmade(safeLimit);
+            }
+            if("popular".equals(normalized)){
+                return productService.getPopular(safeLimit);
+            }
+        }
+        if(type != null && !type.isBlank()){
+            return productService.getByType(type);
+        }
         return productService.getAll();
+    }
+
+    @GetMapping("/new-arrivals")
+    public Map<String, List<Product>> newArrivals(
+            @RequestParam(value = "perType", defaultValue = "3") Integer perType){
+        return productService.getNewArrivalsByType(perType);
     }
 
     @GetMapping("/{id}")
@@ -32,33 +58,4 @@ public class ProductController {
         }
     }
 
-    @PostMapping
-    public ResponseEntity<?> create(@RequestBody Product p){
-        try {
-            Product saved = productService.create(p);
-            return ResponseEntity.ok(saved);
-        } catch(IllegalArgumentException e){
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
-        }
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Product p){
-        try {
-            Product updated = productService.update(id, p);
-            return ResponseEntity.ok(updated);
-        } catch(IllegalArgumentException e){
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id){
-        try {
-            productService.delete(id);
-            return ResponseEntity.ok().build();
-        } catch(IllegalArgumentException e){
-            return ResponseEntity.notFound().build();
-        }
-    }
 }

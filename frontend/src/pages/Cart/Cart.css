@@ -64,6 +64,23 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
 }
 
+.cart-remove-btn {
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.cart-remove-btn:hover,
+.cart-remove-btn:focus {
+  color: #ef4444 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+}
+
 .qty-input {
   width: 70px;
   padding: 8px;

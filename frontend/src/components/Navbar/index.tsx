@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Navbar as BootstrapNavbar, Nav, Container, Overlay, Popover } from 'react-bootstrap'
+import { productTypeAPI } from '../../services/api'
 import './Navbar.css'
 
 interface NavbarProps {
@@ -9,9 +10,19 @@ interface NavbarProps {
   onLogout: () => void
 }
 
+interface ProductType {
+  id: number
+  name: string
+  slug: string
+}
+
+const toTitleCase = (value: string) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : value
+
 export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const navigate = useNavigate()
   const [cartItems, setCartItems] = useState<any[]>([])
+  const [productTypes, setProductTypes] = useState<ProductType[]>([])
   const [showCartPreview, setShowCartPreview] = useState(false)
   const cartTriggerRef = useRef<HTMLDivElement | null>(null)
   const hidePreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -51,6 +62,12 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
         clearTimeout(hidePreviewTimeoutRef.current)
       }
     }
+  }, [])
+
+  useEffect(() => {
+    productTypeAPI.getAll()
+      .then(res => setProductTypes(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setProductTypes([]))
   }, [])
 
   const cartTotalItems = useMemo(
@@ -107,14 +124,12 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
             {/* Product navigation - hidden for admins */}
             {!isAdmin && (
               <>
-                <Nav.Link as={Link} to="/products">Noutati</Nav.Link>
-                <Nav.Link as={Link} to="/products">Reduceri</Nav.Link>
-                <Nav.Link as={Link} to="/products">Descopera</Nav.Link>
-                <Nav.Link as={Link} to="/products">Inele</Nav.Link>
-                <Nav.Link as={Link} to="/products">Cercei</Nav.Link>
-                <Nav.Link as={Link} to="/products">Bratari</Nav.Link>
-                <Nav.Link as={Link} to="/products">Lanturi</Nav.Link>
-                <Nav.Link as={Link} to="/products">Accesorii</Nav.Link>
+                <Nav.Link as={Link} to="/products?section=noutati">Noutati</Nav.Link>
+                {productTypes.map(type => (
+                  <Nav.Link key={type.id} as={Link} to={`/products?type=${encodeURIComponent(type.slug)}`}>
+                    {toTitleCase(type.name)}
+                  </Nav.Link>
+                ))}
               </>
             )}
 

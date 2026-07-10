@@ -92,6 +92,7 @@ Or register a new customer account.
 ### Admin Features
 - ✅ Role-based access control (ROLE_ADMIN)
 - ✅ Product CRUD (Create, Read, Update, Delete)
+- ✅ Product category CRUD (dynamic storefront menu)
 - ✅ Inventory management
 - ✅ Order management & status updates
 - ✅ User management
@@ -152,11 +153,16 @@ Full API docs available at: `http://localhost:8080/swagger-ui.html`
 **Products (Public)**
 - `GET /api/products` - List all products
 - `GET /api/products/{id}` - Get product by ID
+- `GET /api/products?type={slug}` - Filter by category type
+- `GET /api/products?section=promotii|handmade|popular&limit=8` - Curated sections
+- `GET /api/products/new-arrivals?perType=3` - New arrivals per category
+- `GET /api/product-types` - List category types for storefront menu
 
 **Products (Admin)**
 - `POST /api/admin/products` - Create product
 - `PUT /api/admin/products/{id}` - Update product
 - `DELETE /api/admin/products/{id}` - Delete product
+- `GET/POST/PUT/DELETE /api/admin/product-types` - Manage product categories
 
 **Orders (Authenticated)**
 - `GET /api/orders` - List user's orders
