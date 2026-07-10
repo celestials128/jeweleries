@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/celestials_db}
+    username: ${SPRING_DATASOURCE_USERNAME:celestials}
+    password: ${SPRING_DATASOURCE_PASSWORD:celestials}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+
+server:
+  port: 8080
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_xxx}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+
+jwt:
+  secret: ${JWT_SECRET:changeit123456789012345678901234}
+  exp-ms: 3600000
+
+logging:
+  level:
+    root: INFO

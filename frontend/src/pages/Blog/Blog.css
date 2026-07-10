@@ -1,0 +1,57 @@
+.blog-card {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.blog-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.blog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2a2a2a;
+  margin-bottom: 0.5rem;
+}
+
+.blog-excerpt {
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.6;
+}
+
+.blog-detail {
+  line-height: 1.8;
+  color: #333;
+}
+
+.blog-detail h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #2a2a2a;
+}
+
+.blog-meta {
+  font-size: 0.9rem;
+  color: #999;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 1rem;
+}
+
+.blog-form {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.blog-form .form-label {
+  font-weight: 600;
+  color: #2a2a2a;
+}
+
+.blog-form textarea {
+  min-height: 300px;
+  resize: vertical;
+}

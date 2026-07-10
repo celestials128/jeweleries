@@ -1,0 +1,27 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://db:5432/celestials_db
+    username: celestials
+    password: celestials
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_xxx}
+
+storage:
+  type: ${STORAGE_TYPE:local}
+  local:
+    path: uploads
+    base-url: http://localhost:8080
+  s3:
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    bucket: ${S3_BUCKET:celestials}
+    region: ${S3_REGION:us-east-1}
+    endpoint: ${S3_ENDPOINT:}
+    public-url: ${S3_PUBLIC_URL:}
