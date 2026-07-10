@@ -63,12 +63,23 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String,String> body){
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String,String> body, Authentication auth){
         try {
-            Order order = orderService.updateStatus(id, body.getOrDefault("status", "CREATED"));
+            User user = userRepository.findByUsername(auth.getName()).orElseThrow();
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+            Order order = orderService.updateStatusForUser(id, body.getOrDefault("status", "CREATED"), user, isAdmin);
             return ResponseEntity.ok(order);
         } catch(IllegalArgumentException e){
+            if("Unauthorized".equals(e.getMessage())){
+                return ResponseEntity.status(403).build();
+            }
+            if("ForbiddenStatus".equals(e.getMessage())){
+                return ResponseEntity.status(403).body(Map.of("error", "Only admins can set this status"));
+            }
             return ResponseEntity.notFound().build();
+        } catch(Exception e){
+            return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
         }
     }
 }

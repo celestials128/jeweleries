@@ -50,6 +50,7 @@ cp .env.example .env
 Edit `.env` and add your Stripe test keys:
 ```env
 STRIPE_SECRET_KEY=sk_test_your_test_key
+VITE_STRIPE_PK=pk_test_your_publishable_key
 ```
 
 ### Step 2: Start Services
@@ -167,6 +168,15 @@ Full API docs available at: `http://localhost:8080/swagger-ui.html`
 - `POST /api/stripe/create-payment-intent` - Create payment intent
 - `POST /api/stripe/webhook` - Stripe webhook handler
 
+### Stripe flow (secured)
+- Backend calculates payment amount from DB products (not from client input)
+- Authenticated checkout creates `PENDING_PAYMENT` order linked to Stripe `payment_intent_id`
+- Webhook signature is verified with `STRIPE_WEBHOOK_SECRET`
+- Order transitions:
+  - `payment_intent.succeeded` -> `PAID` (and stock is decremented)
+  - `payment_intent.payment_failed` -> `PAYMENT_FAILED`
+  - `payment_intent.canceled` -> `CANCELLED`
+
 ## 🔧 Development
 
 ### Backend Development
@@ -207,6 +217,7 @@ JWT_SECRET=your-secret-min-32-chars
 
 # Frontend
 VITE_API_URL=http://localhost:8080
+VITE_STRIPE_PK=pk_test_xxx
 
 # Active profile
 SPRING_PROFILES_ACTIVE=dev
@@ -224,23 +235,46 @@ SPRING_PROFILES_ACTIVE=dev
 
 ## 🚢 Production Deployment
 
-### 1. Build Docker Images
+### Hostinger VPS Recommendation
+
+For this stack (Spring Boot + PostgreSQL + React + reverse proxy + SSL), choose at least:
+
+- **Recommended**: Hostinger VPS with **4 vCPU / 8 GB RAM** (smooth production baseline)
+- **Minimum for low traffic**: **2 vCPU / 4 GB RAM**
+- **Disk**: at least **80 GB NVMe** (images + DB growth + backups)
+
+This gives enough headroom for Docker, PostgreSQL, Java heap, and TLS termination.
+
+### Production stack included in this repo
+
+- `docker-compose.prod.yml` (db + backend + frontend + Caddy reverse proxy)
+- `infra/caddy/Caddyfile` (automatic Let's Encrypt HTTPS + security headers)
+- `.env.production.example` (required production environment variables)
+
+### 1. Prepare server
 ```bash
-docker-compose build
+# On your VPS
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker $USER
 ```
 
-### 2. Configure Production .env
-```env
-STRIPE_SECRET_KEY=sk_live_your_production_key
-STRIPE_WEBHOOK_SECRET=whsec_your_production_secret
-JWT_SECRET=your-production-secret-min-32-chars
-VITE_API_URL=https://your-domain.com
-SPRING_PROFILES_ACTIVE=prod
+### 2. Configure production environment
+```bash
+cp .env.production.example .env.production
 ```
 
-### 3. Enable HTTPS
-- Use nginx reverse proxy with SSL
-- Or use cloud provider's load balancer (AWS ALB, Google Cloud LB, etc.)
+Edit `.env.production` and set:
+- `DOMAIN`
+- `LETSENCRYPT_EMAIL`
+- strong `POSTGRES_PASSWORD`
+- strong `JWT_SECRET` (32+ chars)
+- live Stripe keys
+
+### 3. Start production services (HTTPS enabled)
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
 
 ### 4. Database Backup
 ```bash
@@ -251,12 +285,10 @@ docker exec celestials-db-1 pg_dump -U celestials celestials_db > backup.sql
 docker exec -i celestials-db-1 psql -U celestials celestials_db < backup.sql
 ```
 
-### 5. Deploy to Cloud
-- AWS ECS / EC2
-- Google Cloud Run
-- Azure Container Instances
-- DigitalOcean App Platform
-- Heroku (with Procfile)
+### 5. Notes
+- Open firewall ports: **80** and **443** only
+- Do not expose PostgreSQL port publicly
+- Caddy obtains and renews TLS certificates automatically
 
 ## 🐛 Troubleshooting
 
@@ -304,8 +336,14 @@ docker-compose up --build
 
 **Payment fails:**
 1. Verify STRIPE_SECRET_KEY is correct (starts with `sk_test_` for testing)
-2. Check webhook endpoint: `POST /api/stripe/webhook`
-3. Use valid test card: `4242 4242 4242 4242`
+2. Verify frontend publishable key `VITE_STRIPE_PK` (starts with `pk_test_` for testing)
+3. Check webhook endpoint: `POST /api/stripe/webhook`
+4. For local webhook testing, use Stripe CLI:
+   ```bash
+   stripe listen --forward-to http://localhost:8080/api/stripe/webhook
+   ```
+   Then set `STRIPE_WEBHOOK_SECRET` to the secret shown by Stripe CLI.
+5. Use valid test card: `4242 4242 4242 4242`
 
 ## 📝 Sample Data
 

@@ -1,9 +1,16 @@
 import axios from 'axios'
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const browserOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080'
+const configuredApiUrl = (import.meta.env.VITE_API_URL || browserOrigin).replace(/\/+$/, '')
+
+export const API_URL = configuredApiUrl.endsWith('/api')
+  ? configuredApiUrl.slice(0, -4)
+  : configuredApiUrl
+
+const API_BASE_URL = `${API_URL}/api`
 
 const apiClient = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -29,7 +36,7 @@ export const productAPI = {
 }
 
 export const blogAPI = {
-  getPublished: () => axios.get(`${API_URL}/api/blogs/published`)
+  getPublished: () => axios.get(`${API_BASE_URL}/blogs/published`)
 }
 
 export const uploadAPI = {
@@ -39,7 +46,7 @@ export const uploadAPI = {
     formData.append('directory', 'products')
 
     const uploadClient = axios.create({
-      baseURL: `${API_URL}/api`
+      baseURL: API_BASE_URL
       // Do NOT set Content-Type here — browser must set it automatically
       // with the correct multipart boundary for the server to parse the file
     })
@@ -64,7 +71,8 @@ export const orderAPI = {
 }
 
 export const stripeAPI = {
-  createPaymentIntent: (amount: number) => apiClient.post('/stripe/create-payment-intent', { amount })
+  createPaymentIntent: (items: Array<{ productId: number; quantity: number }>) =>
+    apiClient.post('/stripe/create-payment-intent', { items })
 }
 
 export default apiClient

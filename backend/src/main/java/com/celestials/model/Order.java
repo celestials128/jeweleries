@@ -24,6 +24,9 @@ public class Order {
 
     private String status; // CREATED, PAID, SHIPPED, CANCELLED
 
+    @Column(unique = true)
+    private String paymentIntentId;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -35,5 +38,7 @@ public class Order {
     public OffsetDateTime getCreatedAt(){return createdAt;} public void setCreatedAt(OffsetDateTime createdAt){this.createdAt = createdAt;}
     public BigDecimal getTotal(){return total;} public void setTotal(BigDecimal total){this.total = total;}
     public String getStatus(){return status;} public void setStatus(String status){this.status = status;}
+    public String getPaymentIntentId(){return paymentIntentId;}
+    public void setPaymentIntentId(String paymentIntentId){this.paymentIntentId = paymentIntentId;}
     public List<OrderItem> getItems(){return items;} public void setItems(List<OrderItem> items){this.items = items;}
 }

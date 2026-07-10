@@ -8,7 +8,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { toast } from 'react-toastify'
-import { orderAPI, stripeAPI, authAPI } from '../../services/api'
+import { stripeAPI, authAPI } from '../../services/api'
 import './Checkout.css'
 
 const stripePromise = loadStripe(
@@ -78,7 +78,9 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
 
     try {
       // 1. Create Stripe payment intent
-      const intentRes = await stripeAPI.createPaymentIntent(Math.round(total * 100))
+      const intentRes = await stripeAPI.createPaymentIntent(
+        cartItems.map(item => ({ productId: item.id, quantity: item.quantity }))
+      )
       const clientSecret = intentRes.data.clientSecret
 
       // 2. Confirm card payment
@@ -118,20 +120,6 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
             // Account creation failed after payment — warn but don't block
             const msg = regErr.response?.data?.message || regErr.response?.data?.error || 'Contul nu a putut fi creat, dar plata a fost procesata.'
             toast.warn(msg)
-          }
-        }
-
-        // 4. Create order record if authenticated
-        if (localStorage.getItem('token')) {
-          try {
-            const orderRes = await orderAPI.create(
-              cartItems.map(item => ({ productId: item.id, quantity: item.quantity }))
-            )
-            if (orderRes.data?.id) {
-              await orderAPI.updateStatus(orderRes.data.id, 'PAID')
-            }
-          } catch {
-            // Payment succeeded but order record failed — not blocking
           }
         }
 

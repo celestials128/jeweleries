@@ -38,11 +38,13 @@ services:
       - celestials-net
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_STRIPE_PK: ${VITE_STRIPE_PK:-pk_test_4eC39HqLyjWDarhtT657B3h5}
     ports:
       - "3000:80"
-    environment:
-      VITE_API_URL: http://localhost:8080
     depends_on:
       - backend
     networks:
