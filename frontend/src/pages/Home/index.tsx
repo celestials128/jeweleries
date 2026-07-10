@@ -66,8 +66,8 @@ export default function Home() {
 
   const sections = [
     { key: 'promotii', title: 'PROMOTII', products: promotions, link: '/products?section=promotii' },
-    { key: 'handmade', title: 'COLECTIA HANDMADE', products: handmade, link: '/products?section=handmade' },
-    { key: 'popular', title: 'PRODUSE POPULARE', products: popular, link: '/products?section=popular' }
+    { key: 'popular', title: 'PRODUSE POPULARE', products: popular, link: '/products?section=popular' },
+    { key: 'handmade', title: 'COLECTIA HANDMADE', products: handmade, link: '/products?section=handmade' }
   ]
 
   return (
