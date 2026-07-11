@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { productAPI, productTypeAPI, uploadAPI, orderAPI } from '../../services/api'
+import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
 
@@ -100,6 +100,10 @@ export default function AdminDashboard() {
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('all')
   const [orderSortBy, setOrderSortBy] = useState<'createdAt' | 'total' | 'id'>('createdAt')
   const [orderSortDirection, setOrderSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
@@ -326,6 +330,32 @@ export default function AdminDashboard() {
     setImages([])
     setError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handlePasswordUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (newPassword.length < 6) {
+      toast.error('Noua parola trebuie sa aiba cel putin 6 caractere.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Parolele nu coincid.')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      await authAPI.changePassword(currentPassword, newPassword)
+      toast.success('Parola a fost actualizata.')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: any) {
+      const message = err.response?.data?.error || err.message || 'Nu s-a putut actualiza parola.'
+      toast.error(message)
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const createType = async () => {
@@ -577,6 +607,48 @@ export default function AdminDashboard() {
                     </Button>
                   )}
                 </div>
+              </Form>
+            </Card.Body>
+          </Card>
+
+          <Card className="admin-card shadow-sm border-0 mt-4">
+            <Card.Header className="admin-card-header">
+              <Card.Title className="mb-0">Admin Password</Card.Title>
+            </Card.Header>
+            <Card.Body>
+              <Form onSubmit={handlePasswordUpdate}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Current Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    required
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Confirm New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </Form.Group>
+                <Button type="submit" className="admin-btn-submit w-100" disabled={passwordLoading}>
+                  {passwordLoading ? <><Spinner size="sm" className="me-2" />Updating...</> : 'Update Password'}
+                </Button>
               </Form>
             </Card.Body>
           </Card>

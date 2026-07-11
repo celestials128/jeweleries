@@ -35,4 +35,21 @@ public class AuthService {
     public boolean validatePassword(String rawPassword, String encodedPassword){
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
+
+    public void changePassword(String username, String currentPassword, String newPassword){
+        if(username == null || username.isBlank()){
+            throw new IllegalArgumentException("User not found");
+        }
+        if(newPassword == null || newPassword.trim().length() < 6){
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
+
+        User user = findByUsername(username);
+        if(currentPassword == null || !validatePassword(currentPassword, user.getPassword())){
+            throw new IllegalArgumentException("invalid_credentials");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

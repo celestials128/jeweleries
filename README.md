@@ -285,6 +285,13 @@ Edit `.env.production` and set:
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
 
+### Redeploy after pulling changes
+```bash
+bash scripts/redeploy-server.sh
+```
+
+The script pulls the current branch from `origin`, rebuilds the images, and restarts the stack without removing the database volume.
+
 ### 4. Database Backup
 ```bash
 # Backup

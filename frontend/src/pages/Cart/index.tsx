@@ -83,20 +83,20 @@ export default function Cart() {
         </thead>
         <tbody>
           {cartItems.map(item => (
-            <tr key={item.id}>
-              <td className="fw-600">{item.name}</td>
-              <td>${Number(item.price).toFixed(2)}</td>
-              <td>
+            <tr key={item.id} className="cart-table-row">
+              <td data-label="Produs" className="fw-600 cart-product-cell">{item.name}</td>
+              <td data-label="Pret" className="cart-price-cell">${Number(item.price).toFixed(2)}</td>
+              <td data-label="Cantitate" className="cart-qty-cell">
                 <Form.Control 
                   type="number" 
                   min="1" 
                   value={item.quantity}
                   onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
-                  style={{ width: '80px' }}
+                  className="cart-qty-input"
                 />
               </td>
-              <td className="fw-bold">${(Number(item.price) * Number(item.quantity)).toFixed(2)}</td>
-              <td>
+              <td data-label="Total" className="fw-bold cart-total-cell">${(Number(item.price) * Number(item.quantity)).toFixed(2)}</td>
+              <td data-label="Actiune" className="cart-action-cell">
                 <Button 
                   variant="outline-light"
                   size="sm"
