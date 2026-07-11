@@ -26,6 +26,9 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<?> listUserOrders(Authentication auth){
         try {
+            if (auth == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
+            }
             User user = userRepository.findByUsername(auth.getName()).orElseThrow();
             List<Order> orders = orderService.getUserOrders(user);
             return ResponseEntity.ok(orders);
@@ -37,6 +40,9 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<?> get(@PathVariable Long id, Authentication auth){
         try {
+            if (auth == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
+            }
             User user = userRepository.findByUsername(auth.getName()).orElseThrow();
             Order order = orderService.getOrder(id, user);
             return ResponseEntity.ok(order);
@@ -51,9 +57,13 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody Map<String,Object> body, Authentication auth){
         try {
-            User user = userRepository.findByUsername(auth.getName()).orElseThrow();
+            User user = null;
+            if (auth != null) {
+                user = userRepository.findByUsername(auth.getName()).orElse(null);
+            }
             List<Map<String,Object>> items = (List<Map<String,Object>>)body.get("items");
-            Order order = orderService.createOrder(items, user);
+            String paymentMethod = body.getOrDefault("paymentMethod", "CASH_ON_DELIVERY").toString();
+            Order order = orderService.createOrder(items, user, paymentMethod);
             return ResponseEntity.ok(order);
         } catch(IllegalArgumentException e){
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -65,6 +75,9 @@ public class OrderController {
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String,String> body, Authentication auth){
         try {
+            if (auth == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
+            }
             User user = userRepository.findByUsername(auth.getName()).orElseThrow();
             boolean isAdmin = auth.getAuthorities().stream()
                     .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));

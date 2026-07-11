@@ -12,7 +12,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -40,6 +42,24 @@ public class SecurityConfig {
     }
 
     @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers("/api/payments/netopia/**");
+    }
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain netopiaSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/payments/netopia/**")
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception{
         http
             .securityMatcher("/api/**", "/v3/**", "/swagger-ui/**", "/swagger-ui.html", "/health")
@@ -47,7 +67,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/product-types","/api/blogs/published","/api/blogs/*","/api/stripe/**","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
+                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/product-types","/api/blogs/published","/api/blogs/*","/api/payments/netopia/**","/api/orders","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
                 .anyRequest().authenticated()
             );
 
@@ -79,7 +99,7 @@ public class SecurityConfig {
             "Accept",
             "Origin",
             "X-Requested-With",
-            "Stripe-Signature",
+            "X-Netopia-Signature",
             "X-User-Id"
         ));
         config.setExposedHeaders(Arrays.asList("Authorization"));

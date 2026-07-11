@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Row, Col, Form, Button, Spinner } from 'react-bootstrap'
-import {
-  Elements,
-  CardNumberElement, CardExpiryElement, CardCvcElement,
-  useStripe, useElements
-} from '@stripe/react-stripe-js'
-import { loadStripe } from '@stripe/stripe-js'
 import { toast } from 'react-toastify'
-import { stripeAPI, authAPI } from '../../services/api'
+import { authAPI, netopiaAPI, orderAPI } from '../../services/api'
 import './Checkout.css'
-
-const stripePromise = loadStripe(
-  (import.meta as any).env?.VITE_STRIPE_PK || 'pk_test_4eC39HqLyjWDarhtT657B3h5'
-)
 
 interface CartItem {
   id: number
@@ -27,136 +17,184 @@ interface BillingInfo {
   lastName: string
   email: string
   phone: string
-  address: string
+  country: string
   city: string
+  address: string
+  postalCode: string
 }
 
 const EMPTY_BILLING: BillingInfo = {
-  firstName: '', lastName: '', email: '', phone: '', address: '', city: ''
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  country: 'RO',
+  city: '',
+  address: '',
+  postalCode: ''
 }
 
-const stripeStyle = {
-  base: {
-    fontSize: '16px',
-    color: '#1a2332',
-    fontFamily: '"Lato", sans-serif',
-    fontSmoothing: 'antialiased',
-    '::placeholder': { color: '#94a3b8' }
-  },
-  invalid: { color: '#dc2626' }
-}
-
-/* ── Inner form (needs stripe/elements context) ── */
 function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: number }) {
-  const stripe = useStripe()
-  const elements = useElements()
   const navigate = useNavigate()
-
   const [billing, setBilling] = useState<BillingInfo>(EMPTY_BILLING)
+  const [loading, setLoading] = useState(false)
+  const [validated, setValidated] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'CARD_ONLINE' | 'CASH_ON_DELIVERY'>('CARD_ONLINE')
   const [createAccount, setCreateAccount] = useState(false)
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [netopiaConfigured, setNetopiaConfigured] = useState(false)
 
-  const handleBillingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setBilling(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  useEffect(() => {
+    netopiaAPI.getStatus()
+      .then(res => {
+        const configured = Boolean(res.data?.configured)
+        setNetopiaConfigured(configured)
+        if (!configured) {
+          setPaymentMethod('CASH_ON_DELIVERY')
+        }
+      })
+      .catch(() => {
+        setNetopiaConfigured(false)
+        setPaymentMethod('CASH_ON_DELIVERY')
+      })
+  }, [])
+
+  const handleBillingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target
+    setBilling(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!stripe || !elements) return
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setValidated(true)
 
-    const cardElement = elements.getElement(CardNumberElement)
-    if (!cardElement) return
+    if (
+      !billing.firstName.trim() ||
+      !billing.lastName.trim() ||
+      !billing.email.trim() ||
+      !billing.country.trim() ||
+      !billing.city.trim() ||
+      !billing.address.trim()
+    ) {
+      toast.error('Completeaza campurile obligatorii.')
+      return
+    }
 
-    // Validate password upfront if account creation requested
-    if (createAccount && (!password || password.length < 6)) {
+    if (createAccount && password.trim().length < 6) {
       toast.error('Parola trebuie sa aiba cel putin 6 caractere.')
       return
     }
 
     setLoading(true)
-
     try {
-      // 1. Create Stripe payment intent
-      const intentRes = await stripeAPI.createPaymentIntent(
-        cartItems.map(item => ({ productId: item.id, quantity: item.quantity }))
-      )
-      const clientSecret = intentRes.data.clientSecret
+      if (createAccount) {
+        await authAPI.register(billing.email, password)
+        const loginRes = await authAPI.login(billing.email, password)
+        const token = loginRes.data.token
+        const role = loginRes.data.role || 'ROLE_CUSTOMER'
+        localStorage.setItem('token', token)
+        localStorage.setItem('role', role)
+        window.dispatchEvent(new Event('auth:updated'))
+      }
 
-      // 2. Confirm card payment
-      const { paymentIntent, error: stripeErr } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: `${billing.firstName} ${billing.lastName}`.trim(),
-            email: billing.email,
-            phone: billing.phone || undefined,
-            address: {
-              line1: billing.address,
-              city: billing.city
-            }
-          }
-        }
-      })
-
-      if (stripeErr) {
-        toast.error(stripeErr.message || 'Eroare la procesarea platii.')
-        setLoading(false)
+      if (paymentMethod === 'CASH_ON_DELIVERY') {
+        await orderAPI.create(
+          cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
+          paymentMethod
+        )
+        localStorage.removeItem('cart')
+        window.dispatchEvent(new Event('cart:updated'))
+        toast.success('Comanda a fost plasata. Plata se face la livrare.')
+        navigate('/orders')
         return
       }
 
-      if (paymentIntent?.status === 'succeeded') {
-        // 3. Payment succeeded — now optionally create account
-        if (createAccount) {
-          try {
-            await authAPI.register(billing.email, password)
-            const loginRes = await authAPI.login(billing.email, password)
-            const { token, role } = loginRes.data
-            localStorage.setItem('token', token)
-            localStorage.setItem('role', role || '')
-            window.dispatchEvent(new Event('auth:updated'))
-            toast.success('Cont creat cu succes!')
-          } catch (regErr: any) {
-            // Account creation failed after payment — warn but don't block
-            const msg = regErr.response?.data?.message || regErr.response?.data?.error || 'Contul nu a putut fi creat, dar plata a fost procesata.'
-            toast.warn(msg)
-          }
-        }
+      const response = await netopiaAPI.startCheckout({
+        items: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
+        billing,
+        returnUrl: `${window.location.origin}/orders`
+      })
 
-        localStorage.removeItem('cart')
-        window.dispatchEvent(new Event('cart:updated'))
-        toast.success('Plata efectuata cu succes! Multumim!')
-        navigate(localStorage.getItem('token') ? '/orders' : '/')
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || 'A aparut o eroare.')
-    } finally {
+      const payload = response.data
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = payload.startUrl
+      form.style.display = 'none'
+
+      const dataInput = document.createElement('input')
+      dataInput.type = 'hidden'
+      dataInput.name = 'data'
+      dataInput.value = payload.data
+
+      const envKeyInput = document.createElement('input')
+      envKeyInput.type = 'hidden'
+      envKeyInput.name = 'env_key'
+      envKeyInput.value = payload.envKey
+
+      form.appendChild(dataInput)
+      form.appendChild(envKeyInput)
+      document.body.appendChild(form)
+      form.submit()
+      toast.info('Redirectam catre plata securizata NETOPIA...')
+    } catch (error: any) {
+      const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Nu am putut pregati plata.'
+      toast.error(message)
       setLoading(false)
     }
   }
 
   return (
     <Form onSubmit={handleSubmit} noValidate>
-      {/* Billing */}
       <div className="co-section">
-        <h5 className="co-section-title">📋 Informatii Facturare</h5>
+        <h5 className="co-section-title">Date de facturare</h5>
         <Row className="g-3">
           <Col sm={6}>
             <Form.Group>
               <Form.Label>Prenume *</Form.Label>
-              <Form.Control name="firstName" value={billing.firstName} onChange={handleBillingChange} required placeholder="Ion" />
+              <Form.Control
+                name="firstName"
+                value={billing.firstName}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && !billing.firstName.trim()}
+                placeholder="Ion"
+              />
+              <Form.Control.Feedback type="invalid">
+                Prenumele este obligatoriu.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col sm={6}>
             <Form.Group>
               <Form.Label>Nume *</Form.Label>
-              <Form.Control name="lastName" value={billing.lastName} onChange={handleBillingChange} required placeholder="Popescu" />
+              <Form.Control
+                name="lastName"
+                value={billing.lastName}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && !billing.lastName.trim()}
+                placeholder="Popescu"
+              />
+              <Form.Control.Feedback type="invalid">
+                Numele este obligatoriu.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col sm={6}>
             <Form.Group>
               <Form.Label>Email *</Form.Label>
-              <Form.Control type="email" name="email" value={billing.email} onChange={handleBillingChange} required placeholder="exemplu@email.com" />
+              <Form.Control
+                type="email"
+                name="email"
+                value={billing.email}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && (!billing.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billing.email))}
+                placeholder="exemplu@email.com"
+              />
+              <Form.Control.Feedback type="invalid">
+                Introdu o adresa de email valida.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col sm={6}>
@@ -167,28 +205,99 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
           </Col>
           <Col sm={6}>
             <Form.Group>
-              <Form.Label>Adresa *</Form.Label>
-              <Form.Control name="address" value={billing.address} onChange={handleBillingChange} required placeholder="Strada, Nr." />
+              <Form.Label>Tara *</Form.Label>
+              <Form.Control
+                name="country"
+                value={billing.country}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && !billing.country.trim()}
+                placeholder="RO"
+              />
+              <Form.Control.Feedback type="invalid">
+                Tara este obligatorie.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col sm={6}>
             <Form.Group>
               <Form.Label>Oras *</Form.Label>
-              <Form.Control name="city" value={billing.city} onChange={handleBillingChange} required placeholder="Bucuresti" />
+              <Form.Control
+                name="city"
+                value={billing.city}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && !billing.city.trim()}
+                placeholder="Bucuresti"
+              />
+              <Form.Control.Feedback type="invalid">
+                Orasul este obligatoriu.
+              </Form.Control.Feedback>
+            </Form.Group>
+          </Col>
+          <Col sm={8}>
+            <Form.Group>
+              <Form.Label>Adresa *</Form.Label>
+              <Form.Control
+                name="address"
+                value={billing.address}
+                onChange={handleBillingChange}
+                required
+                isInvalid={validated && !billing.address.trim()}
+                placeholder="Strada, Nr."
+              />
+              <Form.Control.Feedback type="invalid">
+                Adresa este obligatorie.
+              </Form.Control.Feedback>
+            </Form.Group>
+          </Col>
+          <Col sm={4}>
+            <Form.Group>
+              <Form.Label>Cod postal</Form.Label>
+              <Form.Control name="postalCode" value={billing.postalCode} onChange={handleBillingChange} placeholder="010101" />
             </Form.Group>
           </Col>
         </Row>
       </div>
 
-      {/* Optional account creation */}
+      <div className="co-section">
+        <h5 className="co-section-title">Modalitate de plata</h5>
+        <div className="co-payment-options">
+          <Form.Check
+            type="radio"
+            id="payment-card"
+            name="paymentMethod"
+            label="Card online (NETOPIA)"
+            checked={paymentMethod === 'CARD_ONLINE'}
+            disabled={!netopiaConfigured}
+            onChange={() => setPaymentMethod('CARD_ONLINE')}
+          />
+          <Form.Check
+            type="radio"
+            id="payment-cod"
+            name="paymentMethod"
+            label="Cash la livrare"
+            checked={paymentMethod === 'CASH_ON_DELIVERY'}
+            onChange={() => setPaymentMethod('CASH_ON_DELIVERY')}
+          />
+        </div>
+        <div className="co-note mt-3">
+          {!netopiaConfigured
+            ? 'Plata cu cardul nu este configurata local, astfel incat poti folosi cash la livrare.'
+            : paymentMethod === 'CASH_ON_DELIVERY'
+            ? 'Plasezi comanda acum si platesti curierului la livrare.'
+            : 'Vei fi redirectionat catre plata securizata NETOPIA.'
+          }
+        </div>
+      </div>
+
       <div className="co-section co-account-section">
         <Form.Check
           type="checkbox"
           id="create-account"
-          label="Doresc sa-mi creez un cont Celestials"
+          label="Creeaza-mi un cont Celestials"
           checked={createAccount}
           onChange={e => setCreateAccount(e.target.checked)}
-          className="co-account-check"
         />
         {createAccount && (
           <Form.Group className="mt-3">
@@ -198,76 +307,31 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="Minim 6 caractere"
-              minLength={6}
+              isInvalid={validated && password.trim().length < 6}
             />
-            <Form.Text className="text-muted">
-              Contul va fi creat cu adresa de email de mai sus.
-            </Form.Text>
+            <Form.Control.Feedback type="invalid">
+              Parola trebuie sa aiba cel putin 6 caractere.
+            </Form.Control.Feedback>
           </Form.Group>
         )}
       </div>
 
-      {/* Card payment */}
-      <div className="co-section">
-        <h5 className="co-section-title">💳 Detalii Card</h5>
-
-        {/* Split Stripe inputs */}
-        <div className="co-card-fields">
-          <Form.Group>
-            <Form.Label>Numar card</Form.Label>
-            <div className="co-stripe-field">
-              <CardNumberElement
-                options={{
-                  showIcon: false,
-                  style: stripeStyle
-                }}
-              />
-            </div>
-          </Form.Group>
-
-          <Row className="g-3 mt-0">
-            <Col xs={6}>
-              <Form.Group>
-                <Form.Label>Data expirare</Form.Label>
-                <div className="co-stripe-field">
-                  <CardExpiryElement options={{ style: stripeStyle }} />
-                </div>
-              </Form.Group>
-            </Col>
-            <Col xs={6}>
-              <Form.Group>
-                <Form.Label>CVC</Form.Label>
-                <div className="co-stripe-field co-cvc-field">
-                  <CardCvcElement options={{ style: stripeStyle }} />
-                  <span className="co-cvc-icon">🔒</span>
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
-        </div>
-
-        <div className="co-test-card">
-          <strong>Card test:</strong> 4242 4242 4242 4242 &nbsp;·&nbsp; 12/34 &nbsp;·&nbsp; 123
-        </div>
+      <div className="co-section co-note">
+        <strong>NETOPIA</strong> deschide plata intr-o pagina securizata. Vei reveni automat dupa confirmare.
       </div>
 
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        className="w-100 co-pay-btn"
-        disabled={loading || !stripe}
-      >
+      <Button type="submit" variant="primary" size="lg" className="w-100 co-pay-btn" disabled={loading}>
         {loading
           ? <><Spinner animation="border" size="sm" className="me-2" />Se proceseaza...</>
-          : `🔒 Plateste $${total.toFixed(2)}`
+          : paymentMethod === 'CASH_ON_DELIVERY'
+            ? `Plaseaza comanda ${total.toFixed(2)} RON`
+            : `Continua la plata ${total.toFixed(2)} RON`
         }
       </Button>
     </Form>
   )
 }
 
-/* ── Page wrapper ── */
 export default function Checkout() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [total, setTotal] = useState(0)
@@ -284,6 +348,8 @@ export default function Checkout() {
     setTotal(normalized.reduce((sum, item) => sum + item.price * item.quantity, 0))
   }, [])
 
+  const itemCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
+
   if (cartItems.length === 0) {
     return (
       <Container className="py-5 text-center">
@@ -298,37 +364,34 @@ export default function Checkout() {
 
   return (
     <Container className="py-5 co-container">
-      <h1 className="co-title">Finalizare Comanda</h1>
+      <h1 className="co-title">Finalizare comanda</h1>
+      <p className="co-subtitle">{itemCount} produse in cos</p>
 
       <Row className="g-4 mt-1 align-items-start">
-        {/* Summary sidebar */}
         <Col lg={4}>
           <div className="co-summary">
-            <h5 className="co-section-title">🛒 Rezumat</h5>
+            <h5 className="co-section-title">Rezumat comanda</h5>
             <div className="co-items">
               {cartItems.map(item => (
                 <div key={item.id} className="co-item">
                   <span className="co-item-name">{item.name}</span>
-                  <span className="co-item-meta">x{item.quantity} · ${(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="co-item-meta">x{item.quantity} · {(item.price * item.quantity).toFixed(2)} RON</span>
                 </div>
               ))}
             </div>
             <div className="co-total">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{total.toFixed(2)} RON</span>
             </div>
             <div className="co-secure-badge">
-              🔒 Plata securizata prin Stripe
+              Plata securizata prin NETOPIA
             </div>
           </div>
         </Col>
 
-        {/* Form */}
         <Col lg={8}>
           <div className="co-form-card">
-            <Elements stripe={stripePromise}>
-              <CheckoutForm cartItems={cartItems} total={total} />
-            </Elements>
+            <CheckoutForm cartItems={cartItems} total={total} />
           </div>
         </Col>
       </Row>

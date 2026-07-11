@@ -17,9 +17,14 @@ server:
   port: 8080
   forward-headers-strategy: framework
 
-stripe:
-  secret-key: ${STRIPE_SECRET_KEY:}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+netopia:
+  signature: ${NETOPIA_SIGNATURE:}
+  start-url: ${NETOPIA_START_URL:https://secure.sandbox.netopia-payments.com/payment/card/start}
+  confirm-url: ${NETOPIA_CONFIRM_URL:http://localhost:8080/api/payments/netopia/confirm}
+  return-url: ${NETOPIA_RETURN_URL:http://localhost:3000/orders}
+  public-cert-path: ${NETOPIA_PUBLIC_CERT_PATH:/app/config/netopia/public.cer}
+  currency: ${NETOPIA_CURRENCY:RON}
+  merchant-name: ${NETOPIA_MERCHANT_NAME:Celestials}
 
 jwt:
   secret: ${JWT_SECRET:changeit123456789012345678901234}

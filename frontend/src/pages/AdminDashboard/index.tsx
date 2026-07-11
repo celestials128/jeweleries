@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { productAPI, productTypeAPI, uploadAPI } from '../../services/api'
+import { productAPI, productTypeAPI, uploadAPI, orderAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
 
@@ -42,6 +42,14 @@ interface FormImage {
   url: string
   isNew: boolean
   file?: File
+}
+
+interface Order {
+  id: number
+  status: string
+  paymentMethod?: string
+  total: number
+  createdAt: string
 }
 
 const EMPTY_FORM: ProductForm = {
@@ -86,6 +94,12 @@ export default function AdminDashboard() {
   const [newTypeName, setNewTypeName] = useState('')
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null)
   const [editingTypeName, setEditingTypeName] = useState('')
+  const [orders, setOrders] = useState<Order[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all')
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState('all')
+  const [orderSortBy, setOrderSortBy] = useState<'createdAt' | 'total' | 'id'>('createdAt')
+  const [orderSortDirection, setOrderSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
@@ -104,6 +118,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchProducts()
     fetchTypes()
+    fetchOrders()
   }, [])
 
   const fetchProducts = () => {
@@ -124,6 +139,17 @@ export default function AdminDashboard() {
         setError(message)
         toast.error(message)
       })
+  }
+
+  const fetchOrders = () => {
+    setOrdersLoading(true)
+    orderAPI.getAllAdmin()
+      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
+      .catch(err => {
+        const message = err.response?.data?.error || 'Failed to fetch orders'
+        toast.error(message)
+      })
+      .finally(() => setOrdersLoading(false))
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -382,6 +408,28 @@ export default function AdminDashboard() {
     () => filteredAndSortedProducts.slice(startIndex, startIndex + itemsPerPage),
     [filteredAndSortedProducts, startIndex]
   )
+
+  const filteredAndSortedOrders = useMemo(() => {
+    const filtered = orders.filter(order => {
+      const matchesStatus = orderStatusFilter === 'all' || order.status === orderStatusFilter
+      const matchesPayment = orderPaymentFilter === 'all' || order.paymentMethod === orderPaymentFilter
+      return matchesStatus && matchesPayment
+    })
+
+    filtered.sort((a, b) => {
+      let comparison = 0
+      if (orderSortBy === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      } else if (orderSortBy === 'total') {
+        comparison = Number(a.total || 0) - Number(b.total || 0)
+      } else {
+        comparison = Number(a.id || 0) - Number(b.id || 0)
+      }
+      return orderSortDirection === 'asc' ? comparison : -comparison
+    })
+
+    return filtered
+  }, [orders, orderStatusFilter, orderPaymentFilter, orderSortBy, orderSortDirection])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -708,6 +756,80 @@ export default function AdminDashboard() {
                       </Pagination>
                     </div>
                   )}
+                </>
+              )}
+            </Card.Body>
+          </Card>
+
+          <Card className="admin-card shadow-sm border-0 mt-4">
+            <Card.Header className="admin-card-header">
+              <Card.Title className="mb-0">Recent Orders</Card.Title>
+            </Card.Header>
+            <Card.Body className="table-responsive">
+              {ordersLoading ? (
+                <div className="text-center py-4"><Spinner animation="border" /></div>
+              ) : orders.length === 0 ? (
+                <p className="text-muted text-center py-4">No orders yet.</p>
+              ) : (
+                <>
+                  <div className="table-toolbar mb-3">
+                    <Form.Select value={orderStatusFilter} onChange={e => setOrderStatusFilter(e.target.value)}>
+                      <option value="all">All statuses</option>
+                      <option value="AWAITING_CASH_ON_DELIVERY">Cash on delivery</option>
+                      <option value="PENDING_PAYMENT">Pending payment</option>
+                      <option value="PAID">Paid</option>
+                      <option value="SHIPPED">Shipped</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </Form.Select>
+                    <Form.Select value={orderPaymentFilter} onChange={e => setOrderPaymentFilter(e.target.value)}>
+                      <option value="all">All payment methods</option>
+                      <option value="CARD_ONLINE">Card online</option>
+                      <option value="CASH_ON_DELIVERY">Cash on delivery</option>
+                    </Form.Select>
+                    <Form.Select value={orderSortBy} onChange={e => setOrderSortBy(e.target.value as 'createdAt' | 'total' | 'id')}>
+                      <option value="createdAt">Sort by date</option>
+                      <option value="total">Sort by total</option>
+                      <option value="id">Sort by order id</option>
+                    </Form.Select>
+                    <Button
+                      variant="outline-primary"
+                      onClick={() => setOrderSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                    >
+                      {orderSortDirection === 'asc' ? 'Asc' : 'Desc'}
+                    </Button>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <span className="text-muted small">
+                      {`Showing ${filteredAndSortedOrders.length} orders`}
+                    </span>
+                  </div>
+                  <Table hover className="mb-0">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Payment</th>
+                      <th>Status</th>
+                      <th>Total</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedOrders.slice(0, 10).map(order => (
+                      <tr key={order.id}>
+                        <td>#{order.id}</td>
+                        <td>
+                          <Badge bg={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'warning' : 'primary'} text={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'dark' : 'light'}>
+                            {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Cash la livrare' : 'Card online'}
+                          </Badge>
+                        </td>
+                        <td>{order.status}</td>
+                        <td>${Number(order.total).toFixed(2)}</td>
+                        <td>{new Date(order.createdAt).toLocaleString('ro-RO')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
                 </>
               )}
             </Card.Body>

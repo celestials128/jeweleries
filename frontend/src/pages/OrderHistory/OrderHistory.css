@@ -84,6 +84,12 @@
   white-space: nowrap;
 }
 
+.oh-payment-method {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
 .status-created   { background: #fff7ed; color: #c2410c; }
 .status-paid      { background: #f0fdf4; color: #15803d; }
 .status-shipped   { background: #eff6ff; color: #1d4ed8; }

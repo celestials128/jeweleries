@@ -8,7 +8,7 @@ Celestials is a production-ready e-commerce platform featuring:
 - **Backend**: Spring Boot 3.1 REST API with JWT authentication
 - **Frontend**: React 18 + Vite with TypeScript
 - **Database**: PostgreSQL with Flyway migrations
-- **Payments**: Stripe integration for secure transactions
+- **Payments**: NETOPIA hosted card checkout
 - **Deployment**: Docker + docker-compose
 
 ## 📁 Project Structure
@@ -38,7 +38,7 @@ celestials/
 
 ### Prerequisites
 - Docker & Docker Compose (v20+)
-- Stripe test account (https://stripe.com)
+- NETOPIA sandbox merchant account and certificate
 
 ### Step 1: Setup Environment
 
@@ -47,10 +47,10 @@ cd celestials
 cp .env.example .env
 ```
 
-Edit `.env` and add your Stripe test keys:
+Edit `.env` and add your NETOPIA settings:
 ```env
-STRIPE_SECRET_KEY=sk_test_your_test_key
-VITE_STRIPE_PK=pk_test_your_publishable_key
+NETOPIA_SIGNATURE=your_signature
+NETOPIA_PUBLIC_CERT_PATH=/app/config/netopia/public.cer
 ```
 
 ### Step 2: Start Services
@@ -82,10 +82,13 @@ Or register a new customer account.
 
 ### Customer Features
 - ✅ User registration & JWT authentication
+- ✅ Guest checkout without account
+- ✅ Optional account creation during checkout
 - ✅ Browse products with descriptions & images
 - ✅ Search and filter products
 - ✅ Shopping cart with local storage
-- ✅ Secure Stripe payment checkout
+- ✅ Secure NETOPIA payment checkout
+- ✅ Cash on delivery checkout
 - ✅ Order history & status tracking
 - ✅ Mobile-responsive design
 
@@ -94,14 +97,14 @@ Or register a new customer account.
 - ✅ Product CRUD (Create, Read, Update, Delete)
 - ✅ Product category CRUD (dynamic storefront menu)
 - ✅ Inventory management
-- ✅ Order management & status updates
+- ✅ Order management, filtering and sorting
 - ✅ User management
 
 ### Technical Features
 - ✅ JWT token-based authentication
 - ✅ Spring Security with method-level authorization
 - ✅ PostgreSQL with Flyway versioned migrations
-- ✅ Stripe Payments API integration
+- ✅ NETOPIA Payments API integration
 - ✅ REST API with OpenAPI/Swagger documentation
 - ✅ Error handling & validation
 - ✅ CORS configuration
@@ -131,9 +134,7 @@ npm test
 4. Proceed to checkout
 
 **Test Payment:**
-Use Stripe test card: `4242 4242 4242 4242`
-- Expiry: Any future date (e.g., 12/26)
-- CVC: Any 3 digits (e.g., 123)
+Use the NETOPIA sandbox card details from your merchant account.
 
 **Admin CRUD:**
 1. Login as admin
@@ -164,24 +165,23 @@ Full API docs available at: `http://localhost:8080/swagger-ui.html`
 - `DELETE /api/admin/products/{id}` - Delete product
 - `GET/POST/PUT/DELETE /api/admin/product-types` - Manage product categories
 
-**Orders (Authenticated)**
+**Orders**
 - `GET /api/orders` - List user's orders
-- `POST /api/orders` - Create new order
+- `POST /api/orders` - Create new order (guest or authenticated)
 - `GET /api/orders/{id}` - Get order details
 - `PUT /api/orders/{id}/status` - Update order status
+- `GET /api/orders/admin/all` - Admin order list
 
 **Payments**
-- `POST /api/stripe/create-payment-intent` - Create payment intent
-- `POST /api/stripe/webhook` - Stripe webhook handler
+- `POST /api/payments/netopia/start` - Create hosted checkout payload
+- `POST /api/payments/netopia/confirm` - NETOPIA confirm callback
+- `POST /api/payments/netopia/notify` - NETOPIA notify callback
 
-### Stripe flow (secured)
+### NETOPIA flow (secured)
 - Backend calculates payment amount from DB products (not from client input)
-- Authenticated checkout creates `PENDING_PAYMENT` order linked to Stripe `payment_intent_id`
-- Webhook signature is verified with `STRIPE_WEBHOOK_SECRET`
-- Order transitions:
-  - `payment_intent.succeeded` -> `PAID` (and stock is decremented)
-  - `payment_intent.payment_failed` -> `PAYMENT_FAILED`
-  - `payment_intent.canceled` -> `CANCELLED`
+- Checkout creates a `PENDING_PAYMENT` order linked to a NETOPIA payment reference
+- The NETOPIA sandbox certificate encrypts the hosted payment payload
+- Callback handling transitions orders to `PAID`, `PAYMENT_FAILED`, or `CANCELLED`
 
 ## 🔧 Development
 
@@ -214,19 +214,22 @@ POSTGRES_DB=celestials_db
 POSTGRES_USER=celestials
 POSTGRES_PASSWORD=celestials
 
-# Stripe
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
+# NETOPIA
+NETOPIA_SIGNATURE=your_signature
+NETOPIA_PUBLIC_CERT_PATH=/app/config/netopia/public.cer
 
 # JWT
 JWT_SECRET=your-secret-min-32-chars
 
 # Frontend
 VITE_API_URL=http://localhost:8080
-VITE_STRIPE_PK=pk_test_xxx
-
 # Active profile
 SPRING_PROFILES_ACTIVE=dev
+```
+
+Optional helper:
+```powershell
+.\scripts\set-netopia-env.ps1 -Signature "your_signature"
 ```
 
 ## 🔐 Security
@@ -275,7 +278,7 @@ Edit `.env.production` and set:
 - `LETSENCRYPT_EMAIL`
 - strong `POSTGRES_PASSWORD`
 - strong `JWT_SECRET` (32+ chars)
-- live Stripe keys
+- live NETOPIA signature/certificate path
 
 ### 3. Start production services (HTTPS enabled)
 ```bash
@@ -338,18 +341,13 @@ docker-compose up --build
 1. Verify VITE_API_URL in `.env`
 2. Check backend SecurityConfig permits frontend URL
 
-### Stripe Issues
+### Payment Issues
 
 **Payment fails:**
-1. Verify STRIPE_SECRET_KEY is correct (starts with `sk_test_` for testing)
-2. Verify frontend publishable key `VITE_STRIPE_PK` (starts with `pk_test_` for testing)
-3. Check webhook endpoint: `POST /api/stripe/webhook`
-4. For local webhook testing, use Stripe CLI:
-   ```bash
-   stripe listen --forward-to http://localhost:8080/api/stripe/webhook
-   ```
-   Then set `STRIPE_WEBHOOK_SECRET` to the secret shown by Stripe CLI.
-5. Use valid test card: `4242 4242 4242 4242`
+1. Verify `NETOPIA_SIGNATURE` is correct.
+2. Verify `NETOPIA_PUBLIC_CERT_PATH` points to the sandbox certificate.
+3. Check callback endpoints: `POST /api/payments/netopia/confirm` and `POST /api/payments/netopia/notify`.
+4. Confirm the backend can reach the NETOPIA start URL from your environment.
 
 ## 📝 Sample Data
 

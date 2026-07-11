@@ -3,8 +3,6 @@ FROM node:18 AS build
 WORKDIR /app
 ARG VITE_API_URL=http://localhost:8080
 ENV VITE_API_URL=${VITE_API_URL}
-ARG VITE_STRIPE_PK=pk_test_4eC39HqLyjWDarhtT657B3h5
-ENV VITE_STRIPE_PK=${VITE_STRIPE_PK}
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .

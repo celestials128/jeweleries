@@ -15,16 +15,24 @@ interface Order {
   id: number
   total: number
   status: string
+  paymentMethod?: string
   createdAt: string
   items: OrderItem[]
 }
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   CREATED:   { label: 'In asteptare', cls: 'status-created' },
+  AWAITING_CASH_ON_DELIVERY: { label: 'Cash la livrare', cls: 'status-created' },
+  PENDING_PAYMENT: { label: 'In asteptare plata', cls: 'status-created' },
   PAID:      { label: 'Platita',      cls: 'status-paid' },
   SHIPPED:   { label: 'Expediata',    cls: 'status-shipped' },
   DELIVERED: { label: 'Livrata',      cls: 'status-delivered' },
   CANCELLED: { label: 'Anulata',      cls: 'status-cancelled' }
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  CARD_ONLINE: 'Card online',
+  CASH_ON_DELIVERY: 'Cash la livrare'
 }
 
 export default function OrderHistory() {
@@ -100,7 +108,10 @@ export default function OrderHistory() {
                     })}
                   </span>
                 </div>
-                <span className={`oh-status ${statusInfo.cls}`}>{statusInfo.label}</span>
+                <div className="d-flex flex-column align-items-end gap-2">
+                  <span className={`oh-status ${statusInfo.cls}`}>{statusInfo.label}</span>
+                  <span className="oh-payment-method">{PAYMENT_LABELS[order.paymentMethod || ''] || 'Nespecificat'}</span>
+                </div>
               </div>
 
               <div className="oh-items">

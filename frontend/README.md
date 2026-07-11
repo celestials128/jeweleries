@@ -1,6 +1,6 @@
 # Celestials Frontend — React + Vite
 
-Modern SPA for Celestials e-commerce built with React 18, TypeScript, Vite, and Stripe integration.
+Modern SPA for Celestials e-commerce built with React 18, TypeScript, Vite, and NETOPIA checkout.
 
 ## Tech Stack
 
@@ -9,7 +9,7 @@ Modern SPA for Celestials e-commerce built with React 18, TypeScript, Vite, and 
 - **Build Tool**: Vite 5 (lightning fast)
 - **Routing**: React Router v6
 - **HTTP Client**: Axios
-- **Payments**: Stripe Elements
+- **Payments**: NETOPIA hosted card flow
 - **Testing**: Vitest + React Testing Library
 - **Styling**: CSS3 (mobile-first responsive)
 
@@ -35,7 +35,7 @@ Access at: `http://localhost:3000`
 ✅ User authentication (login/register)
 ✅ Browse & search products
 ✅ Shopping cart (localStorage)
-✅ Stripe payment checkout
+✅ NETOPIA payment checkout
 ✅ Order history
 ✅ Mobile responsive UI
 
@@ -83,13 +83,13 @@ src/
 
 ### API Client (`services/api.ts`)
 ```typescript
-import { authAPI, productAPI, orderAPI, stripeAPI } from './services/api'
+import { authAPI, productAPI, orderAPI, netopiaAPI } from './services/api'
 
 // Examples:
 await authAPI.login('admin', 'admin')          // Returns { token }
 await productAPI.getAll()                      // Returns products[]
 await orderAPI.create([{productId, quantity}]) // Create order
-await stripeAPI.createPaymentIntent(9999)      // Stripe intent
+await netopiaAPI.startCheckout({...})          // NETOPIA checkout payload
 ```
 
 ### Environment
@@ -162,7 +162,7 @@ npm test
 - Subtotal
 
 ### CheckoutForm
-- Stripe card element
+- NETOPIA hosted checkout form
 - Order summary
 - Test card info
 
@@ -173,15 +173,10 @@ npm test
 
 ## Payment Integration
 
-### Stripe Setup
-1. Get test keys from https://stripe.com
-2. Add to `.env`: `STRIPE_SECRET_KEY=sk_test_xxx`
-3. Frontend uses Stripe JS library (CDN loaded in Checkout.tsx)
-
-### Test Payment
-- Card: `4242 4242 4242 4242`
-- Expiry: Any future (12/26)
-- CVC: Any 3 digits (123)
+### NETOPIA Setup
+1. Add `NETOPIA_SIGNATURE` and `NETOPIA_PUBLIC_CERT_PATH` to `.env`
+2. Backend prepares the hosted checkout payload
+3. Frontend posts the encrypted form to NETOPIA
 
 ## Storage
 
@@ -228,9 +223,9 @@ npm test
 - Verify CORS headers in Spring
 
 ### Payment fails
-- Use correct test card
-- Check Stripe keys in backend .env
-- Verify payment intent creation endpoint works
+- Check NETOPIA_SIGNATURE
+- Verify NETOPIA_PUBLIC_CERT_PATH points to the sandbox certificate
+- Confirm the backend can reach the NETOPIA start URL
 
 ### Build fails
 ```bash

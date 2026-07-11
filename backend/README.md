@@ -8,7 +8,7 @@ RESTful API for Celestials e-commerce platform built with Spring Boot 3.1, JPA/H
 - **Language**: Java 17
 - **Database**: PostgreSQL 15 with Flyway migrations
 - **Security**: Spring Security + JWT
-- **Payment**: Stripe Java SDK
+- **Payment**: NETOPIA hosted card flow
 - **API Docs**: Springdoc OpenAPI (Swagger UI)
 - **Build Tool**: Maven 3.9.4
 - **ORM**: Hibernate/JPA
@@ -36,7 +36,7 @@ API Docs: `http://localhost:8080/swagger-ui.html`
 ✅ Role-based access control (ROLE_CUSTOMER, ROLE_ADMIN)
 ✅ Product CRUD with admin protection
 ✅ Shopping cart & order management
-✅ Stripe payment integration
+✅ NETOPIA payment integration
 ✅ Flyway database migrations
 ✅ OpenAPI/Swagger documentation
 ✅ PostgreSQL with JPA/Hibernate
@@ -52,7 +52,9 @@ API Docs: `http://localhost:8080/swagger-ui.html`
 ### Authenticated
 - `POST /api/orders` - Create order
 - `GET /api/orders` - View orders
-- `GET /api/stripe/create-payment-intent` - Stripe payment
+- `POST /api/payments/netopia/start` - Prepare NETOPIA checkout
+- `POST /api/payments/netopia/confirm` - NETOPIA confirm callback
+- `POST /api/payments/netopia/notify` - NETOPIA notify callback
 
 ### Admin Only
 - `POST /api/admin/products` - Create product
@@ -66,7 +68,8 @@ API Docs: `http://localhost:8080/swagger-ui.html`
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/celestials_db
 SPRING_DATASOURCE_USERNAME=celestials
 SPRING_DATASOURCE_PASSWORD=celestials
-STRIPE_SECRET_KEY=sk_test_xxx
+NETOPIA_SIGNATURE=your_signature
+NETOPIA_PUBLIC_CERT_PATH=/app/config/netopia/public.cer
 JWT_SECRET=min-32-chars-secret
 SPRING_PROFILES_ACTIVE=dev
 ```
@@ -107,8 +110,8 @@ kill -9 <PID>
 **DB connection failed:**
 Check SPRING_DATASOURCE_* vars and PostgreSQL is running.
 
-**Stripe errors:**
-Verify STRIPE_SECRET_KEY is correct test key.
+**Payments not starting:**
+Verify NETOPIA_SIGNATURE and NETOPIA_PUBLIC_CERT_PATH are set correctly.
 
 ---
 

@@ -39,20 +39,29 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(List<Map<String,Object>> items, User user){
+        return createOrder(items, user, "CASH_ON_DELIVERY");
+    }
+
+    @Transactional
+    public Order createOrder(List<Map<String,Object>> items, User user, String paymentMethod){
         Order order = buildOrder(items, user);
-        order.setStatus("CREATED");
+        String normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
+        order.setPaymentMethod(normalizedPaymentMethod);
+        if ("CASH_ON_DELIVERY".equals(normalizedPaymentMethod)) {
+            order.setStatus("AWAITING_CASH_ON_DELIVERY");
+        } else {
+            order.setStatus("CREATED");
+        }
         return orderRepository.save(order);
     }
 
     @Transactional
-    public Order createPendingOrder(List<Map<String,Object>> items, User user, String paymentIntentId){
-        if(paymentIntentId == null || paymentIntentId.isBlank()){
-            throw new IllegalArgumentException("Payment intent id is required");
-        }
-
+    public Order createPendingOrder(List<Map<String,Object>> items, User user){
         Order order = buildOrder(items, user);
         order.setStatus("PENDING_PAYMENT");
-        order.setPaymentIntentId(paymentIntentId);
+        order.setPaymentMethod("CARD_ONLINE");
+        order = orderRepository.save(order);
+        order.setPaymentReference(String.valueOf(order.getId()));
         return orderRepository.save(order);
     }
 
@@ -69,8 +78,12 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
-        if(!adminOverride && !order.getUser().getId().equals(user.getId())){
+        if(!adminOverride && (user == null || order.getUser() == null || !order.getUser().getId().equals(user.getId()))){
             throw new IllegalArgumentException("Unauthorized");
+        }
+
+        if(adminOverride && order.getUser() == null){
+            order.setUser(null);
         }
 
         String normalizedStatus = normalizeStatus(newStatus);
@@ -83,12 +96,12 @@ public class OrderService {
     }
 
     @Transactional
-    public void markPaidByPaymentIntent(String paymentIntentId){
-        if(paymentIntentId == null || paymentIntentId.isBlank()){
+    public void markPaidByPaymentReference(String paymentReference){
+        if(paymentReference == null || paymentReference.isBlank()){
             return;
         }
 
-        Order order = orderRepository.findByPaymentIntentId(paymentIntentId).orElse(null);
+        Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
         if(order == null){
             return;
         }
@@ -116,12 +129,12 @@ public class OrderService {
     }
 
     @Transactional
-    public void markFailedByPaymentIntent(String paymentIntentId){
-        if(paymentIntentId == null || paymentIntentId.isBlank()){
+    public void markFailedByPaymentReference(String paymentReference){
+        if(paymentReference == null || paymentReference.isBlank()){
             return;
         }
 
-        Order order = orderRepository.findByPaymentIntentId(paymentIntentId).orElse(null);
+        Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
         if(order == null){
             return;
         }
@@ -134,13 +147,17 @@ public class OrderService {
         orderRepository.save(order);
     }
 
+    public List<Order> getAllOrders(){
+        return orderRepository.findAllByOrderByCreatedAtDesc();
+    }
+
     @Transactional
-    public void markCanceledByPaymentIntent(String paymentIntentId){
-        if(paymentIntentId == null || paymentIntentId.isBlank()){
+    public void markCanceledByPaymentReference(String paymentReference){
+        if(paymentReference == null || paymentReference.isBlank()){
             return;
         }
 
-        Order order = orderRepository.findByPaymentIntentId(paymentIntentId).orElse(null);
+        Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
         if(order == null){
             return;
         }
@@ -203,5 +220,20 @@ public class OrderService {
             return "CREATED";
         }
         return status.trim().toUpperCase();
+    }
+
+    private String normalizePaymentMethod(String paymentMethod){
+        if(paymentMethod == null || paymentMethod.isBlank()){
+            return "CASH_ON_DELIVERY";
+        }
+
+        String normalized = paymentMethod.trim().toUpperCase().replace('-', '_').replace(' ', '_');
+        if ("COD".equals(normalized) || "CASH_ON_DELIVERY".equals(normalized) || "CASH".equals(normalized)) {
+            return "CASH_ON_DELIVERY";
+        }
+        if ("CARD".equals(normalized) || "CARD_ONLINE".equals(normalized) || "NETOPIA".equals(normalized)) {
+            return "CARD_ONLINE";
+        }
+        return "CASH_ON_DELIVERY";
     }
 }

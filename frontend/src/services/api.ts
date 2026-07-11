@@ -73,14 +73,28 @@ export const uploadAPI = {
 
 export const orderAPI = {
   getAll: () => apiClient.get('/orders'),
+  getAllAdmin: () => apiClient.get('/admin/orders'),
   getById: (id: number) => apiClient.get(`/orders/${id}`),
-  create: (items: any[]) => apiClient.post('/orders', { items }),
+  create: (items: any[], paymentMethod: string = 'CASH_ON_DELIVERY') => apiClient.post('/orders', { items, paymentMethod }),
   updateStatus: (id: number, status: string) => apiClient.put(`/orders/${id}/status`, { status })
 }
 
-export const stripeAPI = {
-  createPaymentIntent: (items: Array<{ productId: number; quantity: number }>) =>
-    apiClient.post('/stripe/create-payment-intent', { items })
+export const netopiaAPI = {
+  getStatus: () => apiClient.get('/payments/netopia/status'),
+  startCheckout: (payload: {
+    items: Array<{ productId: number; quantity: number }>
+    billing: {
+      firstName: string
+      lastName: string
+      email: string
+      phone: string
+      country: string
+      city: string
+      address: string
+      postalCode: string
+    }
+    returnUrl: string
+  }) => apiClient.post('/payments/netopia/start', payload)
 }
 
 export default apiClient

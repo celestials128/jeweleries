@@ -22,10 +22,12 @@ public class Order {
 
     private BigDecimal total;
 
-    private String status; // CREATED, PAID, SHIPPED, CANCELLED
+    private String status; // CREATED, PENDING_PAYMENT, AWAITING_CASH_ON_DELIVERY, PAID, SHIPPED, CANCELLED
+
+    private String paymentMethod; // CARD_ONLINE, CASH_ON_DELIVERY
 
     @Column(unique = true)
-    private String paymentIntentId;
+    private String paymentReference;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -38,7 +40,8 @@ public class Order {
     public OffsetDateTime getCreatedAt(){return createdAt;} public void setCreatedAt(OffsetDateTime createdAt){this.createdAt = createdAt;}
     public BigDecimal getTotal(){return total;} public void setTotal(BigDecimal total){this.total = total;}
     public String getStatus(){return status;} public void setStatus(String status){this.status = status;}
-    public String getPaymentIntentId(){return paymentIntentId;}
-    public void setPaymentIntentId(String paymentIntentId){this.paymentIntentId = paymentIntentId;}
+    public String getPaymentMethod(){return paymentMethod;} public void setPaymentMethod(String paymentMethod){this.paymentMethod = paymentMethod;}
+    public String getPaymentReference(){return paymentReference;}
+    public void setPaymentReference(String paymentReference){this.paymentReference = paymentReference;}
     public List<OrderItem> getItems(){return items;} public void setItems(List<OrderItem> items){this.items = items;}
 }
