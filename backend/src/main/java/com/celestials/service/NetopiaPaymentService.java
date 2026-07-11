@@ -17,6 +17,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,16 +68,25 @@ public class NetopiaPaymentService {
         this.objectMapper = objectMapper;
     }
 
+    public boolean isConfigured() {
+        return StringUtils.hasText(signature) && StringUtils.hasText(publicCertPath);
+    }
+
+    public Map<String, Object> getStatus() {
+        return Map.of(
+                "configured", isConfigured(),
+                "signatureConfigured", StringUtils.hasText(signature),
+                "publicCertConfigured", StringUtils.hasText(publicCertPath)
+        );
+    }
+
     @Transactional
     public NetopiaCheckoutResponse createCheckout(NetopiaCheckoutRequest request, User user) {
         if (request == null || request.items() == null || request.items().isEmpty()) {
             throw new IllegalArgumentException("Order must contain items");
         }
-        if (!StringUtils.hasText(signature)) {
+        if (!isConfigured()) {
             throw new IllegalStateException("NETOPIA signature is not configured");
-        }
-        if (!StringUtils.hasText(publicCertPath)) {
-            throw new IllegalStateException("NETOPIA public certificate path is not configured");
         }
 
         Order order = orderService.createPendingOrder(request.items(), user);
@@ -143,7 +153,7 @@ public class NetopiaPaymentService {
         }
 
         BigDecimal total = order.getTotal();
-        String amount = total == null ? "0.00" : total.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString();
+        String amount = total == null ? "0.00" : total.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String timestamp = OffsetDateTime.now(ZoneOffset.UTC).format(NETOPIA_TIMESTAMP);
         String returnUrl = StringUtils.hasText(request.returnUrl()) ? request.returnUrl() : defaultReturnUrl;
 

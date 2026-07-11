@@ -14,6 +14,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/payments/netopia")
+@CrossOrigin
 public class NetopiaPaymentController {
 
     private final NetopiaPaymentService netopiaPaymentService;
@@ -28,6 +29,11 @@ public class NetopiaPaymentController {
     public ResponseEntity<NetopiaCheckoutResponse> start(@RequestBody NetopiaCheckoutRequest request, Authentication authentication) {
         User user = resolveUser(authentication);
         return ResponseEntity.ok(netopiaPaymentService.createCheckout(request, user));
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<?> status() {
+        return ResponseEntity.ok(netopiaPaymentService.getStatus());
     }
 
     @PostMapping(value = "/confirm", consumes = MediaType.ALL_VALUE, produces = MediaType.APPLICATION_XML_VALUE)
