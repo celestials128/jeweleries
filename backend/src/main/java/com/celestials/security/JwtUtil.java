@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
@@ -18,7 +20,16 @@ public class JwtUtil {
     private long jwtExpirationMs;
 
     private Key getKey(){
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        return Keys.hmacShaKeyFor(sha256(jwtSecret));
+    }
+
+    private byte[] sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to derive JWT signing key", e);
+        }
     }
 
     public String generateToken(String username){

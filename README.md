@@ -220,6 +220,8 @@ NETOPIA_PUBLIC_CERT_PATH=/app/config/netopia/public.cer
 
 # JWT
 JWT_SECRET=your-secret-min-32-chars
+  # Any non-empty secret works; the app derives a 256-bit signing key from it.
+  # Use a long random value in production.
 
 # Frontend
 VITE_API_URL=http://localhost:8080

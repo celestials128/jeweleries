@@ -74,6 +74,8 @@ JWT_SECRET=min-32-chars-secret
 SPRING_PROFILES_ACTIVE=dev
 ```
 
+Any non-empty `JWT_SECRET` will work because the app derives a 256-bit signing key from it. Use a long random value in production.
+
 ### Profiles
 - `dev` - Development with auto seed data
 - `prod` - Production configuration
