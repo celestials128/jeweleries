@@ -210,7 +210,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 42px;
     gap: 0;
   }
 
