@@ -1,143 +1,174 @@
 import React, { useState } from 'react'
-import { Container, Row, Col, Form, Button, Alert, Card, Spinner } from 'react-bootstrap'
+import { Spinner } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { authAPI } from '../../services/api'
 import './Login.css'
 
+type Mode = 'login' | 'register'
+
 export default function Login() {
+  const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [isRegister, setIsRegister] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: any) => {
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    setError('')
+    setUsername('')
+    setPassword('')
+    setConfirmPassword('')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
 
-    try {
-      const res = isRegister 
-        ? await authAPI.register(username, password)
-        : await authAPI.login(username, password)
-
-      localStorage.setItem('token', res.data.token)
-      localStorage.setItem('username', username)
-      
-      // Store admin role if returned by backend
-      let isAdmin = false
-      if (res.data.role) {
-        localStorage.setItem('role', res.data.role)
-        isAdmin = res.data.role === 'ROLE_ADMIN'
-      } else if (username === 'admin') {
-        localStorage.setItem('role', 'ROLE_ADMIN')
-        isAdmin = true
-      } else {
-        localStorage.removeItem('role')
+    if (mode === 'register') {
+      if (password.length < 6) {
+        setError('Parola trebuie sa aiba cel putin 6 caractere.')
+        return
       }
+      if (password !== confirmPassword) {
+        setError('Parolele nu coincid.')
+        return
+      }
+    }
 
-      toast.success(isRegister ? 'Cont creat cu succes.' : 'Autentificare reusita.')
-
-      // Redirect to admin dashboard if admin, otherwise home
-      setTimeout(() => {
-        window.location.href = isAdmin ? '/admin' : '/'
-      }, 350)
-    } catch(err: any){
-      const message = err.response?.data?.error || (isRegister ? 'Registration failed' : 'Login failed')
+    setLoading(true)
+    try {
+      if (mode === 'register') {
+        await authAPI.register(username, password)
+        toast.success('Cont creat cu succes! Te autentificam...')
+        // Auto-login after registration
+        const loginRes = await authAPI.login(username, password)
+        localStorage.setItem('token', loginRes.data.token)
+        localStorage.setItem('username', username)
+        if (loginRes.data.role) {
+          localStorage.setItem('role', loginRes.data.role)
+        } else {
+          localStorage.removeItem('role')
+        }
+        setTimeout(() => { window.location.href = '/' }, 400)
+      } else {
+        const res = await authAPI.login(username, password)
+        localStorage.setItem('token', res.data.token)
+        localStorage.setItem('username', username)
+        let isAdmin = false
+        if (res.data.role) {
+          localStorage.setItem('role', res.data.role)
+          isAdmin = res.data.role === 'ROLE_ADMIN'
+        } else {
+          localStorage.removeItem('role')
+        }
+        toast.success('Autentificare reusita.')
+        setTimeout(() => { window.location.href = isAdmin ? '/admin' : '/' }, 350)
+      }
+    } catch (err: any) {
+      const message = err.response?.data?.error || (mode === 'register' ? 'Inregistrarea a esuat.' : 'Autentificarea a esuat.')
       setError(message)
-      toast.error(message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Container className="py-5 d-flex align-items-center" style={{ minHeight: '80vh' }}>
-      <Row className="w-100">
-        <Col md={6} lg={4} className="mx-auto">
-          <Card className="border-0 shadow-sm" style={{ borderRadius: '16px' }}>
-            <Card.Body className="p-5">
-              <h1 className="text-center mb-4" style={{ color: '#2a2a2a', fontSize: '32px', letterSpacing: '1px' }}>
-                ✨ {isRegister ? 'Inregistrare' : 'Autentificare'}
-              </h1>
-              
-              {error && (
-                <Alert variant="danger" className="mb-4" dismissible onClose={() => setError('')}>
-                  {error}
-                </Alert>
-              )}
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">✨ Celestials</div>
 
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nume Utilizator</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Introdu numele de utilizator"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
-                </Form.Group>
+        {/* Tabs */}
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+            onClick={() => switchMode('login')}
+          >
+            Autentificare
+          </button>
+          <button
+            type="button"
+            className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+            onClick={() => switchMode('register')}
+          >
+            Cont Nou
+          </button>
+        </div>
 
-                <Form.Group className="mb-4">
-                  <Form.Label>Parola</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="Introdu parola"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </Form.Group>
+        {error && (
+          <div className="auth-error" role="alert">
+            {error}
+          </div>
+        )}
 
-                <Button 
-                  variant="primary" 
-                  type="submit" 
-                  className="w-100 mb-3"
-                  disabled={loading}
-                  size="lg"
-                >
-                  {loading ? (
-                    <>
-                      <Spinner animation="border" size="sm" className="me-2" />
-                      Se proceseaza...
-                    </>
-                  ) : (
-                    isRegister ? 'Inregistrare' : 'Autentificare'
-                  )}
-                </Button>
-              </Form>
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          <div className="auth-field">
+            <label htmlFor="auth-username">Nume utilizator</label>
+            <input
+              id="auth-username"
+              type="text"
+              placeholder="ex: maria_ioana"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              autoFocus
+            />
+          </div>
 
-              <div className="text-center mb-4">
-                <p className="mb-0">
-                  {isRegister ? 'Ai deja cont?' : 'Nu ai cont?'}
-                  {' '}
-                  <Button 
-                    variant="link"
-                    onClick={() => setIsRegister(!isRegister)}
-                    className="p-0"
-                    style={{ color: '#a67c52', textDecoration: 'none' }}
-                  >
-                    {isRegister ? 'Autentificare' : 'Inregistrare'}
-                  </Button>
-                </p>
-              </div>
+          <div className="auth-field">
+            <label htmlFor="auth-password">Parola</label>
+            <input
+              id="auth-password"
+              type="password"
+              placeholder={mode === 'register' ? 'Minim 6 caractere' : '••••••••'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              minLength={mode === 'register' ? 6 : undefined}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            />
+          </div>
 
-              <Card className="border-0 mt-4" style={{ backgroundColor: 'rgba(166, 124, 82, 0.05)' }}>
-                <Card.Body>
-                  <p className="mb-2" style={{ fontSize: '12px', color: '#666' }}>
-                    <strong>Acces Demo:</strong>
-                  </p>
-                  <p style={{ fontSize: '12px', color: '#666', margin: '0' }}>
-                    Utilizator: <code>admin</code><br />
-                    Parola: <code>admin</code>
-                  </p>
-                </Card.Body>
-              </Card>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+          {mode === 'register' && (
+            <div className="auth-field">
+              <label htmlFor="auth-confirm">Confirma parola</label>
+              <input
+                id="auth-confirm"
+                type="password"
+                placeholder="Reintrodu parola"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
+          <button type="submit" className="auth-submit" disabled={loading}>
+            {loading ? (
+              <><Spinner animation="border" size="sm" className="me-2" />Se proceseaza...</>
+            ) : mode === 'login' ? 'Autentificare' : 'Creeaza cont'}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          {mode === 'login' ? 'Nu ai cont?' : 'Ai deja cont?'}
+          {' '}
+          <button type="button" className="auth-switch-btn" onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
+            {mode === 'login' ? 'Inregistreaza-te' : 'Autentifica-te'}
+          </button>
+        </p>
+
+        {mode === 'login' && (
+          <div className="auth-demo">
+            <span className="auth-demo-label">Demo admin</span>
+            <code>admin</code> / <code>admin</code>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
