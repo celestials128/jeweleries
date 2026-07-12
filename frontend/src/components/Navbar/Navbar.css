@@ -282,14 +282,34 @@
     gap: 0;
   }
 
-  .header-socials,
-  .header-search {
+  .header-socials {
     display: none;
   }
 
   .navbar-logo {
     font-size: 34px;
     justify-self: center;
+  }
+
+  .header-search {
+    display: inline-flex;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 96px;
+    border-bottom: 1px solid #d8d2ca;
+  }
+
+  .header-search input {
+    font-size: 12px;
+    padding: 4px 2px 4px 0;
+    letter-spacing: 0.2px;
+  }
+
+  .header-search button {
+    font-size: 14px;
+    padding: 0 0 1px 6px;
   }
 
   .mobile-menu-toggle {
