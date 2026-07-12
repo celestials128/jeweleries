@@ -25,6 +25,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
   const [cartTotalPrice, setCartTotalPrice] = useState(0)
   const [cartItemCount, setCartItemCount] = useState(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
     localStorage.clear()
@@ -113,6 +114,15 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
             />
             <button type="submit" aria-label="Search">⌕</button>
           </form>
+
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            aria-label="Deschide meniul"
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+          >
+            ☰
+          </button>
         </div>
 
         <div className="header-menu-row">
@@ -149,6 +159,45 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
               </button>
             )}
           </div>
+        </div>
+
+        <div className={`mobile-menu-panel ${mobileMenuOpen ? 'open' : ''}`}>
+          <Nav className="mobile-menu-links">
+            <Nav.Link as={Link} to="/products?section=noutati" onClick={() => setMobileMenuOpen(false)}>Noutati</Nav.Link>
+            {!isAdmin && productTypes.map(type => (
+              <Nav.Link
+                key={type.id}
+                as={Link}
+                to={`/products?type=${encodeURIComponent(type.slug)}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {toTitleCase(type.name)}
+              </Nav.Link>
+            ))}
+            {!isAdmin && (
+              <>
+                <Nav.Link as={Link} to={isLoggedIn ? '/orders' : '/login'} onClick={() => setMobileMenuOpen(false)}>
+                  Contul meu
+                </Nav.Link>
+                <Nav.Link as={Link} to="/cart" onClick={() => setMobileMenuOpen(false)}>
+                  Cos ({cartTotalLabel} lei)
+                </Nav.Link>
+              </>
+            )}
+            {isAdmin && <Nav.Link as={Link} to="/admin" onClick={() => setMobileMenuOpen(false)}>Admin</Nav.Link>}
+            {isLoggedIn && (
+              <Nav.Link
+                as="button"
+                className="mobile-logout-link"
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  handleLogout()
+                }}
+              >
+                Logout
+              </Nav.Link>
+            )}
+          </Nav>
         </div>
       </Container>
     </header>

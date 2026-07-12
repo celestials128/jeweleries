@@ -25,13 +25,17 @@
 }
 
 .table.cart-table thead > tr > th {
-  background: #f4f4f4;
-  color: #4b5563;
+  background: #f4f4f4 !important;
+  color: #4b5563 !important;
   text-transform: uppercase;
   font-size: 14px;
   font-weight: 700;
   padding: 16px 18px;
   letter-spacing: 0.3px;
+}
+
+.table.cart-table thead {
+  background: #f4f4f4 !important;
 }
 
 .table.cart-table tbody > tr > td {
