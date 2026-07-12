@@ -32,7 +32,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-transform: lowercase;
+}
+
+.social-icon svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  fill: currentColor;
 }
 
 .navbar-logo {

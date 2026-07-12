@@ -20,6 +20,12 @@
   margin-bottom: 16px;
 }
 
+.featured-section-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .featured-section h2 {
   font-family: 'Playfair Display', serif;
   font-size: 26px;
@@ -41,6 +47,13 @@
   line-height: 1;
 }
 .section-see-all:hover { text-decoration: underline; }
+
+.section-cart-feedback {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #15803d;
+}
 
 /* ── Carousel ── */
 .carousel-wrapper {

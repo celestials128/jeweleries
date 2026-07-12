@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { productAPI, blogAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
-import { toast } from 'react-toastify'
 import './Home.css'
 
 interface Product {
@@ -36,10 +35,11 @@ function useItemsPerPage() {
   return items
 }
 
-function ProductCarousel({ products, loading, sectionLink }: {
+function ProductCarousel({ products, loading, sectionLink, onProductAdded }: {
   products: Product[]
   loading: boolean
   sectionLink: string
+  onProductAdded: (productName: string) => void
 }) {
   const [page, setPage] = useState(0)
   const itemsPerPage = useItemsPerPage()
@@ -63,7 +63,7 @@ function ProductCarousel({ products, loading, sectionLink }: {
     }
     localStorage.setItem('cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart:updated'))
-    toast.success(`${product.name} a fost adaugat in cos.`)
+    onProductAdded(product.name)
   }
 
   if (loading) return <p className="carousel-empty">Se incarca...</p>
@@ -134,6 +134,8 @@ export default function Home() {
   const [articles, setArticles] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [articlesLoading, setArticlesLoading] = useState(true)
+  const [sectionFeedback, setSectionFeedback] = useState<Record<string, string>>({})
+  const feedbackTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -166,25 +168,51 @@ export default function Home() {
       .finally(() => setArticlesLoading(false))
   }, [])
 
+  useEffect(() => () => {
+    if (feedbackTimeoutRef.current) {
+      window.clearTimeout(feedbackTimeoutRef.current)
+    }
+  }, [])
+
   const sections = [
     { key: 'promotii', title: 'Promotii', products: promotions, link: '/products?section=promotii' },
     { key: 'popular', title: 'Produse Populare', products: popular, link: '/products?section=popular' },
     { key: 'handmade', title: 'Colectia Handmade', products: handmade, link: '/products?section=handmade' }
   ]
 
+  const handleProductAdded = (sectionKey: string, productName: string) => {
+    setSectionFeedback(prev => ({ ...prev, [sectionKey]: `${productName} a fost adaugat in cos.` }))
+    if (feedbackTimeoutRef.current) {
+      window.clearTimeout(feedbackTimeoutRef.current)
+    }
+    feedbackTimeoutRef.current = window.setTimeout(() => {
+      setSectionFeedback(prev => ({ ...prev, [sectionKey]: '' }))
+    }, 2200)
+  }
+
   return (
     <div className="home">
       {sections.map(section => (
         <section key={section.key} className="featured-section">
           <div className="featured-section-header">
-            <h2>{section.title}</h2>
+            <div className="featured-section-title-wrap">
+              <h2>{section.title}</h2>
+              {sectionFeedback[section.key] && (
+                <p className="section-cart-feedback">{sectionFeedback[section.key]}</p>
+              )}
+            </div>
             <Link to={section.link} className="section-see-all">
               <span>Vezi toate</span>
               <span aria-hidden="true">→</span>
             </Link>
           </div>
 
-          <ProductCarousel products={section.products} loading={loading} sectionLink={section.link} />
+          <ProductCarousel
+            products={section.products}
+            loading={loading}
+            sectionLink={section.link}
+            onProductAdded={(productName) => handleProductAdded(section.key, productName)}
+          />
         </section>
       ))}
 

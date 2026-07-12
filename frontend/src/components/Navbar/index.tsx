@@ -76,10 +76,29 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
       <Container>
         <div className="header-main-row">
           <div className="header-socials">
-            <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="social-icon">f</a>
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="social-icon">ig</a>
-            <a href="https://tiktok.com" target="_blank" rel="noreferrer" aria-label="TikTok" className="social-icon">t</a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube" className="social-icon">yt</a>
+            <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="social-icon">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.94 6.5H7V4.95c0-.45.3-.55.51-.55h1.3V2.14L7.02 2.13C4.8 2.13 4.33 3.79 4.33 4.85V6.5H3v2.27h1.33V14H7V8.77h1.8l.14-2.27z" />
+              </svg>
+            </a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="social-icon">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="2.2" y="2.2" width="11.6" height="11.6" rx="3.4" />
+                <circle cx="8" cy="8" r="2.7" fill="#f7f5f3" />
+                <circle cx="11.5" cy="4.6" r="0.9" fill="#f7f5f3" />
+              </svg>
+            </a>
+            <a href="https://tiktok.com" target="_blank" rel="noreferrer" aria-label="TikTok" className="social-icon">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M9.6 2h2.2c.1 1 .8 2.1 2.2 2.4v2.1c-1.1-.1-2.1-.5-2.9-1.1v4.8a3.7 3.7 0 1 1-3.7-3.7c.4 0 .8.1 1.2.2v2.1a1.7 1.7 0 1 0 1 1.5z" />
+              </svg>
+            </a>
+            <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube" className="social-icon">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="1.8" y="4" width="12.4" height="8" rx="2.2" />
+                <path d="M7 6.2v3.6l3-1.8z" fill="#f7f5f3" />
+              </svg>
+            </a>
           </div>
 
           <Link to="/" className="navbar-logo">ASTERIA</Link>
