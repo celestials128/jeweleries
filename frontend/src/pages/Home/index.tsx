@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { productAPI, blogAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './Home.css'
@@ -25,6 +25,86 @@ interface BlogPost {
   createdAt: string
 }
 
+const CARD_WIDTH = 220 + 16 // card width + gap
+
+function ProductCarousel({ products, loading, sectionLink }: {
+  products: Product[]
+  loading: boolean
+  sectionLink: string
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+
+  const scroll = (dir: 'left' | 'right') => {
+    if (!trackRef.current) return
+    trackRef.current.scrollBy({ left: dir === 'right' ? CARD_WIDTH * 2 : -CARD_WIDTH * 2, behavior: 'smooth' })
+  }
+
+  const addToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
+    const existing = cart.find((i: any) => String(i.id) === String(product.id))
+    if (existing) {
+      existing.quantity += 1
+    } else {
+      cart.push({ id: product.id, name: product.name, price: Number(product.discountedPrice || product.price), quantity: 1, imageUrl: product.imageUrl })
+    }
+    localStorage.setItem('cart', JSON.stringify(cart))
+    window.dispatchEvent(new Event('cart:updated'))
+  }
+
+  if (loading) return <p className="carousel-empty">Se incarca...</p>
+  if (products.length === 0) return <p className="carousel-empty">Nu exista produse momentan.</p>
+
+  return (
+    <div className="carousel-wrapper">
+      <button className="carousel-arrow carousel-arrow-left" onClick={() => scroll('left')} aria-label="Inapoi">&#8249;</button>
+
+      <div className="carousel-track" ref={trackRef}>
+        {products.map(product => {
+          const mainPrice = Number(product.discountedPrice || product.price)
+          const hasDiscount = product.discountPercent && product.discountPercent > 0
+          const inStock = Number(product.stock) > 0
+
+          return (
+            <div key={product.id} className="pcard" onClick={() => navigate(`/products/${product.id}`)}>
+              <div className="pcard-img-wrap">
+                {product.imageUrl
+                  ? <img src={product.imageUrl} alt={product.name} />
+                  : <div className="pcard-no-img">✨</div>
+                }
+              </div>
+
+              <div className="pcard-body">
+                <h3 className="pcard-name">{product.name}</h3>
+
+                {hasDiscount && (
+                  <p className="pcard-original">Pret: {Number(product.price).toFixed(2)} RON</p>
+                )}
+                <p className="pcard-price">de la {mainPrice.toFixed(2)} RON</p>
+
+                <span className={`pcard-stock ${inStock ? 'in-stock' : 'out-stock'}`}>
+                  {inStock ? '✓ In stoc' : '✗ Stoc epuizat'}
+                </span>
+
+                <button
+                  className="pcard-add-btn"
+                  onClick={(e) => addToCart(e, product)}
+                >
+                  Adauga in cos
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <button className="carousel-arrow carousel-arrow-right" onClick={() => scroll('right')} aria-label="Inainte">&#8250;</button>
+    </div>
+  )
+}
+
 export default function Home() {
   const [promotions, setPromotions] = useState<Product[]>([])
   const [handmade, setHandmade] = useState<Product[]>([])
@@ -35,9 +115,9 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      productAPI.getAll({ section: 'promotii', limit: 8 }),
-      productAPI.getAll({ section: 'handmade', limit: 8 }),
-      productAPI.getAll({ section: 'popular', limit: 8 })
+      productAPI.getAll({ section: 'promotii', limit: 16 }),
+      productAPI.getAll({ section: 'handmade', limit: 16 }),
+      productAPI.getAll({ section: 'popular', limit: 16 })
     ])
       .then(([promoRes, handmadeRes, popularRes]) => {
         const normalize = (items: any[]): Product[] =>
@@ -65,43 +145,21 @@ export default function Home() {
   }, [])
 
   const sections = [
-    { key: 'promotii', title: 'PROMOTII', products: promotions, link: '/products?section=promotii' },
-    { key: 'popular', title: 'PRODUSE POPULARE', products: popular, link: '/products?section=popular' },
-    { key: 'handmade', title: 'COLECTIA HANDMADE', products: handmade, link: '/products?section=handmade' }
+    { key: 'promotii', title: 'Promotii', products: promotions, link: '/products?section=promotii' },
+    { key: 'popular', title: 'Produse Populare', products: popular, link: '/products?section=popular' },
+    { key: 'handmade', title: 'Colectia Handmade', products: handmade, link: '/products?section=handmade' }
   ]
 
   return (
     <div className="home">
       {sections.map(section => (
         <section key={section.key} className="featured-section">
-          <h2>{section.title}</h2>
-          {section.products.length > 0 ? (
-            <div className="featured-grid">
-              {section.products.map(product => (
-                <div key={product.id} className="featured-card">
-                  <Link to={`/products/${product.id}`}>
-                    {product.imageUrl
-                      ? <img src={product.imageUrl} alt={product.name} />
-                      : <div className="featured-card-no-img">✨</div>
-                    }
-                  </Link>
-                  <h3>{product.name}</h3>
-                  <div className="featured-footer">
-                    <span className="price">${Number(product.discountedPrice || product.price).toFixed(2)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : loading ? (
-            <p>Loading products...</p>
-          ) : (
-            <p>Nu exista produse momentan.</p>
-          )}
-          {section.products.length > 0 && (
-            <div className="see-more-container">
-              <Link to={section.link} className="button button-outline">Vezi mai multe</Link>
-            </div>
-          )}
+          <div className="featured-section-header">
+            <h2>{section.title}</h2>
+            <Link to={section.link} className="section-see-all">Vezi toate →</Link>
+          </div>
+
+          <ProductCarousel products={section.products} loading={loading} sectionLink={section.link} />
         </section>
       ))}
 
