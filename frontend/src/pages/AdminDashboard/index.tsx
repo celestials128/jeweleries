@@ -692,7 +692,7 @@ export default function AdminDashboard() {
           </Col>
         )}
 
-        {(activeTab === 'products' || activeTab === 'orders') && (
+        {activeTab === 'products' && (
           <>
           <Col lg={5}>
           <Card className="admin-card admin-form-card shadow-sm border-0">
@@ -1050,10 +1050,15 @@ export default function AdminDashboard() {
               )}
             </Card.Body>
           </Card>
+        </Col>
+        </>
+        )}
 
-          <Card className="admin-card shadow-sm border-0 mt-4">
+        {activeTab === 'orders' && (
+          <Col xs={12}>
+          <Card className="admin-card shadow-sm border-0">
             <Card.Header className="admin-card-header">
-              <Card.Title className="mb-0">Recent Orders</Card.Title>
+              <Card.Title className="mb-0">Comenzi ({filteredAndSortedOrders.length})</Card.Title>
             </Card.Header>
             <Card.Body className="table-responsive">
               {ordersLoading ? (
@@ -1086,46 +1091,43 @@ export default function AdminDashboard() {
                       variant="outline-primary"
                       onClick={() => setOrderSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
                     >
-                      {orderSortDirection === 'asc' ? 'Asc' : 'Desc'}
+                      {orderSortDirection === 'asc' ? 'Asc ↑' : 'Desc ↓'}
                     </Button>
                   </div>
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <span className="text-muted small">
-                      {`Showing ${filteredAndSortedOrders.length} orders`}
-                    </span>
+                    <span className="text-muted small">{filteredAndSortedOrders.length} comenzi</span>
                   </div>
                   <Table hover className="mb-0">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Payment</th>
-                      <th>Status</th>
-                      <th>Total</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAndSortedOrders.slice(0, 10).map(order => (
-                      <tr key={order.id}>
-                        <td>#{order.id}</td>
-                        <td>
-                          <Badge bg={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'warning' : 'primary'} text={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'dark' : 'light'}>
-                            {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Cash la livrare' : 'Card online'}
-                          </Badge>
-                        </td>
-                        <td>{order.status}</td>
-                        <td>${Number(order.total).toFixed(2)}</td>
-                        <td>{new Date(order.createdAt).toLocaleString('ro-RO')}</td>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Plata</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Data</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {filteredAndSortedOrders.map(order => (
+                        <tr key={order.id}>
+                          <td>#{order.id}</td>
+                          <td>
+                            <Badge bg={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'warning' : 'primary'} text={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'dark' : 'light'}>
+                              {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Cash la livrare' : 'Card online'}
+                            </Badge>
+                          </td>
+                          <td>{order.status}</td>
+                          <td>{Number(order.total).toFixed(2)} RON</td>
+                          <td>{new Date(order.createdAt).toLocaleString('ro-RO')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
                 </>
               )}
             </Card.Body>
           </Card>
-        </Col>
-        </>
+          </Col>
         )}
       </Row>
     </Container>
