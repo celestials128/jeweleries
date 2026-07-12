@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { productAPI, blogAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
@@ -25,19 +25,30 @@ interface BlogPost {
   createdAt: string
 }
 
+function useItemsPerPage() {
+  const [items, setItems] = useState(() => window.innerWidth <= 768 ? 2 : 4)
+  useEffect(() => {
+    const handler = () => setItems(window.innerWidth <= 768 ? 2 : 4)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return items
+}
+
 function ProductCarousel({ products, loading, sectionLink }: {
   products: Product[]
   loading: boolean
   sectionLink: string
 }) {
-  const trackRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(0)
+  const itemsPerPage = useItemsPerPage()
   const navigate = useNavigate()
 
-  const scroll = (dir: 'left' | 'right') => {
-    if (!trackRef.current) return
-    const pageWidth = trackRef.current.clientWidth
-    trackRef.current.scrollBy({ left: dir === 'right' ? pageWidth : -pageWidth, behavior: 'smooth' })
-  }
+  const totalPages = Math.ceil(products.length / itemsPerPage)
+  const visible = products.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
+
+  // Reset page if itemsPerPage changes (resize)
+  useEffect(() => { setPage(0) }, [itemsPerPage])
 
   const addToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault()
@@ -58,10 +69,15 @@ function ProductCarousel({ products, loading, sectionLink }: {
 
   return (
     <div className="carousel-wrapper">
-      <button className="carousel-arrow carousel-arrow-left" onClick={() => scroll('left')} aria-label="Inapoi">&#8249;</button>
+      <button
+        className={`carousel-arrow carousel-arrow-left${page === 0 ? ' carousel-arrow-disabled' : ''}`}
+        onClick={() => setPage(p => Math.max(0, p - 1))}
+        disabled={page === 0}
+        aria-label="Inapoi"
+      >&#8249;</button>
 
-      <div className="carousel-track" ref={trackRef}>
-        {products.map(product => {
+      <div className="carousel-track">
+        {visible.map(product => {
           const mainPrice = Number(product.discountedPrice || product.price)
           const hasDiscount = product.discountPercent && product.discountPercent > 0
           const inStock = Number(product.stock) > 0
@@ -99,7 +115,12 @@ function ProductCarousel({ products, loading, sectionLink }: {
         })}
       </div>
 
-      <button className="carousel-arrow carousel-arrow-right" onClick={() => scroll('right')} aria-label="Inainte">&#8250;</button>
+      <button
+        className={`carousel-arrow carousel-arrow-right${page >= totalPages - 1 ? ' carousel-arrow-disabled' : ''}`}
+        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+        disabled={page >= totalPages - 1}
+        aria-label="Inainte"
+      >&#8250;</button>
     </div>
   )
 }

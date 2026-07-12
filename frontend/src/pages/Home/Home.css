@@ -49,16 +49,10 @@
 .carousel-track {
   display: flex;
   gap: 16px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
   padding: 4px 2px 8px;
   flex: 1;
   min-width: 0;
-  scroll-snap-type: x mandatory;
 }
-.carousel-track::-webkit-scrollbar { display: none; }
 
 .carousel-arrow {
   flex-shrink: 0;
@@ -83,6 +77,11 @@
   background: #f0f4ff;
   box-shadow: 0 4px 16px rgba(30,58,138,0.18);
 }
+.carousel-arrow-disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
 .carousel-arrow-left { margin-right: 8px; }
 .carousel-arrow-right { margin-left: 8px; }
 
@@ -94,8 +93,8 @@
 
 /* ── Product Card ── */
 .pcard {
-  flex: 0 0 200px;
-  width: 200px;
+  flex: 1 1 0;
+  min-width: 0;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -409,12 +408,6 @@
 
   /* Track gap tighter */
   .carousel-track { gap: 10px; padding: 4px 2px 6px; }
-
-  /* 2 cards exactly: (100vw - 16px section padding - 64px arrows - 10px gap) / 2 */
-  .pcard {
-    flex: 0 0 calc((100vw - 90px) / 2);
-    width: calc((100vw - 90px) / 2);
-  }
 
   .pcard-img-wrap { height: 130px; }
 
