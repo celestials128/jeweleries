@@ -24,6 +24,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const [search, setSearch] = useState('')
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
   const [cartTotalPrice, setCartTotalPrice] = useState(0)
+  const [cartItemCount, setCartItemCount] = useState(0)
 
   const handleLogout = () => {
     localStorage.clear()
@@ -49,7 +50,11 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
       const total = Array.isArray(raw)
         ? raw.reduce((sum, item) => sum + ((Number(item?.price) || 0) * (Number(item?.quantity) || 1)), 0)
         : 0
+      const count = Array.isArray(raw)
+        ? raw.reduce((sum, item) => sum + (Number(item?.quantity) || 0), 0)
+        : 0
       setCartTotalPrice(total)
+      setCartItemCount(count)
     }
 
     refreshCartTotal()
@@ -110,7 +115,10 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
                   <span className="account-caret">⌄</span>
                 </Link>
                 <Link to="/cart" className="cart-summary-link">
-                  <span className="cart-icon">🛒</span>
+                  <span className="cart-icon-wrap">
+                    <span className="cart-icon">🛒</span>
+                    {cartItemCount > 0 && <span className="cart-count-top">{cartItemCount > 99 ? '99+' : cartItemCount}</span>}
+                  </span>
                   <span>{cartTotalLabel} lei</span>
                 </Link>
               </>

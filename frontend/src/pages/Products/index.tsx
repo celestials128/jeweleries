@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Container, Spinner } from 'react-bootstrap'
+import { toast } from 'react-toastify'
 import { productAPI, productTypeAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './Products.css'
@@ -127,6 +128,7 @@ export default function Products() {
     }
     localStorage.setItem('cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart:updated'))
+    toast.success(`${product.name} a fost adaugat in cos.`)
   }
 
   const baseProducts = useMemo(

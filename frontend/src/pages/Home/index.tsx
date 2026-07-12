@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { productAPI, blogAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
+import { toast } from 'react-toastify'
 import './Home.css'
 
 interface Product {
@@ -62,6 +63,7 @@ function ProductCarousel({ products, loading, sectionLink }: {
     }
     localStorage.setItem('cart', JSON.stringify(cart))
     window.dispatchEvent(new Event('cart:updated'))
+    toast.success(`${product.name} a fost adaugat in cos.`)
   }
 
   if (loading) return <p className="carousel-empty">Se incarca...</p>
@@ -176,7 +178,10 @@ export default function Home() {
         <section key={section.key} className="featured-section">
           <div className="featured-section-header">
             <h2>{section.title}</h2>
-            <Link to={section.link} className="section-see-all">Vezi toate →</Link>
+            <Link to={section.link} className="section-see-all">
+              <span>Vezi toate</span>
+              <span aria-hidden="true">→</span>
+            </Link>
           </div>
 
           <ProductCarousel products={section.products} loading={loading} sectionLink={section.link} />

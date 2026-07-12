@@ -135,9 +135,25 @@
   gap: 6px;
 }
 
+.cart-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .account-icon,
 .cart-icon {
   font-size: 18px;
+  line-height: 1;
+}
+
+.cart-count-top {
+  position: absolute;
+  top: -9px;
+  right: -10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
   line-height: 1;
 }
 
