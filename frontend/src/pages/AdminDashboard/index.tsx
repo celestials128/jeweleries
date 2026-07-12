@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI } from '../../services/api'
+import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
 
@@ -43,6 +43,24 @@ interface FormImage {
   url: string
   isNew: boolean
   file?: File
+}
+
+interface AdminUser {
+  id: number
+  username: string
+  role: string
+  orderCount: number
+  totalSpent: number
+  lastOrderDate?: string
+}
+
+interface UserOrder {
+  id: number
+  status: string
+  paymentMethod?: string
+  total: number
+  createdAt: string
+  items: { id: number; quantity: number; price: number; productName?: string }[]
 }
 
 interface Order {
@@ -97,6 +115,16 @@ export default function AdminDashboard() {
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null)
   const [editingTypeName, setEditingTypeName] = useState('')
   const [editingTypeDescription, setEditingTypeDescription] = useState('')
+
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users'>('products')
+
+  // Users tab state
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null)
+  const [userOrders, setUserOrders] = useState<Record<number, UserOrder[]>>({})
+  const [userOrdersLoading, setUserOrdersLoading] = useState<Record<number, boolean>>({})
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [orderStatusFilter, setOrderStatusFilter] = useState('all')
@@ -157,6 +185,32 @@ export default function AdminDashboard() {
         toast.error(message)
       })
       .finally(() => setOrdersLoading(false))
+  }
+
+  const fetchUsers = () => {
+    setUsersLoading(true)
+    adminUserAPI.getAll()
+      .then(res => setUsers(Array.isArray(res.data) ? res.data : []))
+      .catch(() => toast.error('Nu s-au putut incarca utilizatorii.'))
+      .finally(() => setUsersLoading(false))
+  }
+
+  const toggleUserOrders = async (userId: number) => {
+    if (expandedUserId === userId) {
+      setExpandedUserId(null)
+      return
+    }
+    setExpandedUserId(userId)
+    if (userOrders[userId]) return // already loaded
+    setUserOrdersLoading(prev => ({ ...prev, [userId]: true }))
+    try {
+      const res = await adminUserAPI.getOrders(userId)
+      setUserOrders(prev => ({ ...prev, [userId]: Array.isArray(res.data) ? res.data : [] }))
+    } catch {
+      toast.error('Nu s-au putut incarca comenzile utilizatorului.')
+    } finally {
+      setUserOrdersLoading(prev => ({ ...prev, [userId]: false }))
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -485,7 +539,18 @@ export default function AdminDashboard() {
     <Container fluid className="admin-dashboard py-5">
       <Row className="mb-4">
         <Col>
-          <h1 className="admin-title">Admin Dashboard - Product Management</h1>
+          <h1 className="admin-title">Admin Dashboard</h1>
+        </Col>
+      </Row>
+
+      {/* Tab navigation */}
+      <Row className="mb-4">
+        <Col>
+          <div className="admin-tabs">
+            <button className={`admin-tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produse & Categorii</button>
+            <button className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Comenzi</button>
+            <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); if (users.length === 0) fetchUsers() }}>Utilizatori</button>
+          </div>
         </Col>
       </Row>
 
@@ -501,7 +566,135 @@ export default function AdminDashboard() {
       )}
 
       <Row className="g-4">
-        <Col lg={5}>
+        {activeTab === 'users' && (
+          <Col xs={12}>
+            <Card className="admin-card shadow-sm border-0">
+              <Card.Header className="admin-card-header d-flex justify-content-between align-items-center">
+                <Card.Title className="mb-0">Utilizatori ({users.length})</Card.Title>
+                <Button size="sm" variant="outline-primary" onClick={fetchUsers} disabled={usersLoading}>
+                  {usersLoading ? <Spinner size="sm" animation="border" /> : '↻ Reincarca'}
+                </Button>
+              </Card.Header>
+              <Card.Body className="table-responsive">
+                {usersLoading ? (
+                  <div className="text-center py-5"><Spinner animation="border" /></div>
+                ) : users.length === 0 ? (
+                  <p className="text-muted text-center py-4">Nu exista utilizatori inregistrati.</p>
+                ) : (
+                  <Table hover className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Utilizator</th>
+                        <th>Comenzi</th>
+                        <th>Total cheltuit</th>
+                        <th>Ultima comanda</th>
+                        <th>Detalii</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map(user => (
+                        <React.Fragment key={user.id}>
+                          <tr>
+                            <td><strong>{user.username}</strong></td>
+                            <td>
+                              <Badge bg={user.orderCount > 0 ? 'primary' : 'secondary'}>
+                                {user.orderCount} {user.orderCount === 1 ? 'comanda' : 'comenzi'}
+                              </Badge>
+                            </td>
+                            <td>
+                              {user.orderCount > 0
+                                ? <strong>{Number(user.totalSpent).toFixed(2)} RON</strong>
+                                : <span className="text-muted">—</span>}
+                            </td>
+                            <td>
+                              {user.lastOrderDate
+                                ? new Date(user.lastOrderDate).toLocaleDateString('ro-RO')
+                                : <span className="text-muted">—</span>}
+                            </td>
+                            <td>
+                              {user.orderCount > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant={expandedUserId === user.id ? 'primary' : 'outline-primary'}
+                                  onClick={() => toggleUserOrders(user.id)}
+                                >
+                                  {expandedUserId === user.id ? '▲ Ascunde' : '▼ Comenzi'}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                          {expandedUserId === user.id && (
+                            <tr>
+                              <td colSpan={5} className="p-0">
+                                <div className="user-orders-panel">
+                                  {userOrdersLoading[user.id] ? (
+                                    <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
+                                  ) : (userOrders[user.id] || []).length === 0 ? (
+                                    <p className="text-muted p-3 mb-0">Nicio comanda gasita.</p>
+                                  ) : (
+                                    <Table size="sm" className="mb-0 user-orders-table">
+                                      <thead>
+                                        <tr>
+                                          <th>#</th>
+                                          <th>Data</th>
+                                          <th>Status</th>
+                                          <th>Plata</th>
+                                          <th>Total</th>
+                                          <th>Produse</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(userOrders[user.id] || []).map(order => (
+                                          <tr key={order.id}>
+                                            <td>#{order.id}</td>
+                                            <td>{new Date(order.createdAt).toLocaleDateString('ro-RO')}</td>
+                                            <td>
+                                              <Badge bg={
+                                                order.status === 'PAID' ? 'success' :
+                                                order.status === 'SHIPPED' ? 'info' :
+                                                order.status === 'CANCELLED' ? 'danger' :
+                                                order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'warning' : 'secondary'
+                                              } text={order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'dark' : undefined}>
+                                                {order.status}
+                                              </Badge>
+                                            </td>
+                                            <td>
+                                              <span className="text-muted small">
+                                                {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Numerar' : 'Card'}
+                                              </span>
+                                            </td>
+                                            <td><strong>{Number(order.total).toFixed(2)} RON</strong></td>
+                                            <td>
+                                              <div className="order-items-list">
+                                                {order.items.map(item => (
+                                                  <span key={item.id} className="order-item-chip">
+                                                    {item.productName} ×{item.quantity}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </Table>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        )}
+
+        {(activeTab === 'products' || activeTab === 'orders') && (
+          <>
+          <Col lg={5}>
           <Card className="admin-card admin-form-card shadow-sm border-0">
             <Card.Header className="admin-card-header d-flex justify-content-between align-items-center">
               <Card.Title className="mb-0">
@@ -932,6 +1125,8 @@ export default function AdminDashboard() {
             </Card.Body>
           </Card>
         </Col>
+        </>
+        )}
       </Row>
     </Container>
   )

@@ -61,7 +61,6 @@ export default function Products() {
   const [onlyHandmade, setOnlyHandmade] = useState(false)
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const section = (searchParams.get('section') || '').toLowerCase()
   const typeSlug = searchParams.get('type') || ''
@@ -238,52 +237,9 @@ export default function Products() {
         </div>
 
         <div className="products-layout">
-          <div className="products-main">
-            {/* Sort bar */}
-            <div className="products-sort-bar">
-              <span className="products-count">
-                {filteredProducts.length > 0
-                  ? `${filteredProducts.length} produs${filteredProducts.length !== 1 ? 'e' : ''}`
-                  : 'Niciun produs'}
-              </span>
-              <div className="sort-bar-right">
-                <div className="sort-control">
-                  <label htmlFor="sort-select">Ordoneaza:</label>
-                  <select
-                    id="sort-select"
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value as typeof sortBy)}
-                  >
-                    <option value="price-asc">Pret crescator</option>
-                    <option value="price-desc">Pret descrescator</option>
-                    <option value="popular">Cele mai populare</option>
-                    <option value="name-asc">Nume A-Z</option>
-                  </select>
-                </div>
-                <button
-                  className={`filters-toggle-btn ${mobileFiltersOpen ? 'open' : ''}`}
-                  onClick={() => setMobileFiltersOpen(prev => !prev)}
-                >
-                  &#9776; Filtre{hasActiveFilters ? ' ●' : ''}
-                </button>
-              </div>
-            </div>
-
-            {filteredProducts.length === 0 ? (
-              <p className="no-products-msg">Nu am gasit produse pentru filtrele selectate.</p>
-            ) : (
-              <div className="products-grid">
-                {filteredProducts.map(renderProductCard)}
-              </div>
-            )}
-          </div>
-
-          {/* Filters sidebar — right side, toggle to show/hide */}
-          <aside className={`products-filters ${mobileFiltersOpen ? 'open' : 'closed'}`}>
-            <div className="filters-title">
-              <span>Filtre</span>
-              <button type="button" className="filters-close-btn" onClick={() => setMobileFiltersOpen(false)} aria-label="Inchide filtre">✕</button>
-            </div>
+          {/* Filters sidebar — left, always visible */}
+          <aside className="products-filters">
+            <div className="filters-title">Filtre</div>
 
             <div className="filter-group">
               <label htmlFor="search-filter">Cauta produs</label>
@@ -317,6 +273,38 @@ export default function Products() {
               </button>
             )}
           </aside>
+
+          <div className="products-main">
+            {/* Sort bar */}
+            <div className="products-sort-bar">
+              <span className="products-count">
+                {filteredProducts.length > 0
+                  ? `${filteredProducts.length} produs${filteredProducts.length !== 1 ? 'e' : ''}`
+                  : 'Niciun produs'}
+              </span>
+              <div className="sort-control">
+                <label htmlFor="sort-select">Ordoneaza:</label>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                >
+                  <option value="price-asc">Pret crescator</option>
+                  <option value="price-desc">Pret descrescator</option>
+                  <option value="popular">Cele mai populare</option>
+                  <option value="name-asc">Nume A-Z</option>
+                </select>
+              </div>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <p className="no-products-msg">Nu am gasit produse pentru filtrele selectate.</p>
+            ) : (
+              <div className="products-grid">
+                {filteredProducts.map(renderProductCard)}
+              </div>
+            )}
+          </div>
         </div>
       </Container>
     </div>

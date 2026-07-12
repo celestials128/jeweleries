@@ -81,6 +81,11 @@ export const orderAPI = {
   updateStatus: (id: number, status: string) => apiClient.put(`/orders/${id}/status`, { status })
 }
 
+export const adminUserAPI = {
+  getAll: () => apiClient.get('/admin/users'),
+  getOrders: (userId: number) => apiClient.get(`/admin/users/${userId}/orders`)
+}
+
 export const netopiaAPI = {
   getStatus: () => apiClient.get('/payments/netopia/status'),
   startCheckout: (payload: {
