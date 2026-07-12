@@ -25,8 +25,6 @@ interface BlogPost {
   createdAt: string
 }
 
-const CARD_WIDTH = 220 + 16 // card width + gap
-
 function ProductCarousel({ products, loading, sectionLink }: {
   products: Product[]
   loading: boolean
@@ -37,7 +35,8 @@ function ProductCarousel({ products, loading, sectionLink }: {
 
   const scroll = (dir: 'left' | 'right') => {
     if (!trackRef.current) return
-    trackRef.current.scrollBy({ left: dir === 'right' ? CARD_WIDTH * 2 : -CARD_WIDTH * 2, behavior: 'smooth' })
+    const pageWidth = trackRef.current.clientWidth
+    trackRef.current.scrollBy({ left: dir === 'right' ? pageWidth : -pageWidth, behavior: 'smooth' })
   }
 
   const addToCart = (e: React.MouseEvent, product: Product) => {

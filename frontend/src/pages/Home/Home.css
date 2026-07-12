@@ -56,6 +56,7 @@
   padding: 4px 2px 8px;
   flex: 1;
   min-width: 0;
+  scroll-snap-type: x mandatory;
 }
 .carousel-track::-webkit-scrollbar { display: none; }
 
@@ -104,6 +105,7 @@
   cursor: pointer;
   transition: box-shadow 0.2s, transform 0.2s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  scroll-snap-align: start;
 }
 .pcard:hover {
   box-shadow: 0 6px 24px rgba(30,58,138,0.14);
@@ -418,7 +420,6 @@
 
   .pcard-name {
     font-size: 11px;
-    min-height: 42px;
     -webkit-line-clamp: 3;
   }
 
