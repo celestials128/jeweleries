@@ -196,12 +196,21 @@
 }
 
 @media (max-width: 992px) {
+  .navbar-custom {
+    padding: 6px 0;
+  }
+
+  .navbar-custom .container {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
   .header-main-row {
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 52px;
+    min-height: 42px;
     gap: 0;
   }
 
@@ -211,7 +220,7 @@
   }
 
   .navbar-logo {
-    font-size: 38px;
+    font-size: 34px;
     justify-self: center;
   }
 
