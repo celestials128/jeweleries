@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Nav, Container } from 'react-bootstrap'
 import { productTypeAPI } from '../../services/api'
@@ -26,6 +26,8 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const [cartTotalPrice, setCartTotalPrice] = useState(0)
   const [cartItemCount, setCartItemCount] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const accountMenuRef = useRef<HTMLDivElement | null>(null)
 
   const handleLogout = () => {
     localStorage.clear()
@@ -43,6 +45,16 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
     productTypeAPI.getAll()
       .then(res => setProductTypes(Array.isArray(res.data) ? res.data : []))
       .catch(() => setProductTypes([]))
+  }, [])
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setAccountMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
   useEffect(() => {
@@ -138,11 +150,51 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
           <div className="header-account-cart">
             {!isAdmin && (
               <>
-                <Link to={isLoggedIn ? '/orders' : '/login'} className="account-link">
-                  <span className="account-icon">👤</span>
-                  <span>Contul meu</span>
-                  <span className="account-caret">⌄</span>
-                </Link>
+                <div className="account-menu-wrap" ref={accountMenuRef}>
+                  <button
+                    type="button"
+                    className="account-link account-toggle-btn"
+                    onClick={() => setAccountMenuOpen(prev => !prev)}
+                    aria-expanded={accountMenuOpen}
+                    aria-haspopup="menu"
+                  >
+                    <span className="account-icon">👤</span>
+                    <span>Contul meu</span>
+                    <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
+                  </button>
+
+                  {accountMenuOpen && (
+                    <div className="account-dropdown-menu">
+                      {isLoggedIn ? (
+                        <>
+                          <Link to="/orders" className="account-dropdown-item" onClick={() => setAccountMenuOpen(false)}>
+                            Comenzile mele
+                          </Link>
+                          <button
+                            type="button"
+                            className="account-dropdown-item account-dropdown-logout"
+                            onClick={() => {
+                              setAccountMenuOpen(false)
+                              handleLogout()
+                            }}
+                          >
+                            Logout
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link to="/login" className="account-dropdown-login-btn" onClick={() => setAccountMenuOpen(false)}>
+                            Autentificare
+                          </Link>
+                          <div className="account-dropdown-register">
+                            <span>Nu ai Cont?</span>
+                            <Link to="/login" onClick={() => setAccountMenuOpen(false)}>Click aici</Link>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Link to="/cart" className="cart-summary-link">
                   <span className="cart-icon-wrap">
                     <span className="cart-icon">🛒</span>
@@ -153,11 +205,6 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
               </>
             )}
             {isAdmin && <Link to="/admin" className="admin-link">Admin</Link>}
-            {isLoggedIn && (
-              <button type="button" onClick={handleLogout} className="logout-btn-inline">
-                Logout
-              </button>
-            )}
           </div>
         </div>
 

@@ -156,6 +156,75 @@
   gap: 6px;
 }
 
+.account-menu-wrap {
+  position: relative;
+}
+
+.account-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.account-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 170px;
+  border: 1px solid #ece7e2;
+  background: #f7f5f3;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+  z-index: 1100;
+  padding: 8px;
+}
+
+.account-dropdown-login-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 10px 12px;
+  background: #1f2937;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.account-dropdown-register {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.account-dropdown-register a {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.account-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  color: #1f2937;
+  text-decoration: none;
+  border: 1px solid #ece7e2;
+  background: #fff;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.account-dropdown-item:last-child {
+  margin-bottom: 0;
+}
+
+.account-dropdown-logout {
+  cursor: pointer;
+  font: inherit;
+}
+
 .cart-icon-wrap {
   position: relative;
   display: inline-flex;
@@ -232,6 +301,11 @@
     background: #f7f5f3;
     border: 1px solid #ece7e2;
     color: #1a2332;
+  }
+
+  .account-dropdown-menu {
+    left: 0;
+    right: auto;
   }
 
   .mobile-menu-toggle.active {
