@@ -117,11 +117,11 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
 
           <button
             type="button"
-            className="mobile-menu-toggle"
-            aria-label="Deschide meniul"
+            className={`mobile-menu-toggle ${mobileMenuOpen ? 'active' : ''}`}
+            aria-label={mobileMenuOpen ? 'Inchide meniul' : 'Deschide meniul'}
             onClick={() => setMobileMenuOpen(prev => !prev)}
           >
-            ☰
+            {mobileMenuOpen ? '✕' : '☰'}
           </button>
         </div>
 

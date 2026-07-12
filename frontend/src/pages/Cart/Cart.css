@@ -38,6 +38,13 @@
   background: #f4f4f4 !important;
 }
 
+.cart-table.table thead,
+.cart-table.table thead tr,
+.cart-table.table thead th {
+  background: #f4f4f4 !important;
+  color: #4b5563 !important;
+}
+
 .table.cart-table tbody > tr > td {
   vertical-align: middle;
   padding: 16px 18px;
