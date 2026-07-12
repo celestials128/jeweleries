@@ -201,10 +201,6 @@ export default function Home() {
                 <p className="section-cart-feedback">{sectionFeedback[section.key]}</p>
               )}
             </div>
-            <Link to={section.link} className="section-see-all">
-              <span>Vezi toate</span>
-              <span aria-hidden="true">→</span>
-            </Link>
           </div>
 
           <ProductCarousel
@@ -213,6 +209,13 @@ export default function Home() {
             sectionLink={section.link}
             onProductAdded={(productName) => handleProductAdded(section.key, productName)}
           />
+
+          <div className="see-more-container">
+            <Link to={section.link} className="section-see-all">
+              <span>Vezi toate</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </section>
       ))}
 

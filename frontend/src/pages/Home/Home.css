@@ -16,7 +16,7 @@
 .featured-section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 16px;
 }
 
@@ -39,10 +39,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: #1e3a8a;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   line-height: 1;
 }
@@ -53,6 +53,11 @@
   font-size: 12px;
   font-weight: 700;
   color: #15803d;
+}
+
+.see-more-container {
+  margin-top: 8px;
+  text-align: center;
 }
 
 /* ── Carousel ── */

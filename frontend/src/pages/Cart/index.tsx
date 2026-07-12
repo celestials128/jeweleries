@@ -1,21 +1,32 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Container, Table, Button, Alert, Row, Col, Form } from 'react-bootstrap'
 import { toast } from 'react-toastify'
+import { resolveMediaUrl } from '../../utils/media'
 import './Cart.css'
 
+interface CartItem {
+  id: number | string
+  name: string
+  price: number
+  quantity: number
+  imageUrl?: string
+}
+
 export default function Cart() {
-  const [cartItems, setCartItems] = useState<any[]>([])
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
   const navigate = useNavigate()
 
-  const normalizeCartItems = (raw: any[]): any[] => {
+  const normalizeCartItems = (raw: any[]): CartItem[] => {
     if (!Array.isArray(raw)) return []
     return raw
       .filter(item => item && item.id !== undefined && item.id !== null)
       .map(item => ({
-        ...item,
+        id: item.id,
+        name: item.name || 'Produs',
         price: Number(item.price) || 0,
-        quantity: Math.max(1, Number(item.quantity) || 1)
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        imageUrl: resolveMediaUrl(item.imageUrl || '')
       }))
   }
 
@@ -38,7 +49,7 @@ export default function Cart() {
   }
 
   const updateQuantity = (productId: number | string, quantity: number) => {
-    if(quantity <= 0){
+    if (quantity <= 0) {
       removeItem(productId)
       return
     }
@@ -51,89 +62,129 @@ export default function Cart() {
   }
 
   const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const subtotalNoVat = total / 1.19
+  const shipping = 0
+  const totalWithVat = total + shipping
 
-  if(cartItems.length === 0){
-    return (
-      <Container className="py-5 text-center">
-        <Alert variant="info">
-          <h3>Cosul tau este gol</h3>
-          <p>Descopera colectia noastra de bijuterii exquisite.</p>
-        </Alert>
-        <Link to="/products">
-          <Button variant="primary" size="lg">Continua cumparaturile</Button>
-        </Link>
-      </Container>
-    )
+  const money = (value: number) =>
+   value.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const quantityOptions = useMemo(() => Array.from({ length: 10 }, (_, idx) => idx + 1), [])
+
+  if (cartItems.length === 0) {
+   return (
+     <Container className="cart-page py-5">
+       <Alert variant="light" className="cart-empty-alert">
+         <h3>Cosul tau este gol</h3>
+         <p>Descopera colectia noastra de bijuterii.</p>
+       </Alert>
+       <div className="text-center">
+         <Link to="/products">
+           <Button variant="dark" size="lg">Continua cumparaturile</Button>
+         </Link>
+       </div>
+     </Container>
+   )
   }
 
   return (
-    <Container className="py-5">
-      <h1 className="mb-4" style={{ color: '#2a2a2a', fontSize: '36px', letterSpacing: '2px' }}>
-        ✨ Cosul Tau
-      </h1>
-      <Table responsive="lg" className="cart-table">
-        <thead>
-          <tr>
-            <th>Produs</th>
-            <th>Pret</th>
-            <th>Cantitate</th>
-            <th>Total</th>
-            <th>Actiune</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cartItems.map(item => (
-            <tr key={item.id} className="cart-table-row">
-              <td data-label="Produs" className="fw-600 cart-product-cell">{item.name}</td>
-              <td data-label="Pret" className="cart-price-cell">${Number(item.price).toFixed(2)}</td>
-              <td data-label="Cantitate" className="cart-qty-cell">
-                <Form.Control 
-                  type="number" 
-                  min="1" 
-                  value={item.quantity}
-                  onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
-                  className="cart-qty-input"
-                />
-              </td>
-              <td data-label="Total" className="fw-bold cart-total-cell">${(Number(item.price) * Number(item.quantity)).toFixed(2)}</td>
-              <td data-label="Actiune" className="cart-action-cell">
-                <Button 
-                  variant="outline-light"
-                  size="sm"
-                  className="cart-remove-btn"
-                  onClick={() => removeItem(item.id)}
-                >
-                  Sterge
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-      <Row className="mt-5">
-        <Col md={8}></Col>
-        <Col md={4}>
-          <div className="p-4 border rounded" style={{ backgroundColor: 'rgba(166, 124, 82, 0.05)', borderColor: 'rgba(166, 124, 82, 0.1)' }}>
-            <h4 className="mb-3">Rezumat</h4>
-            <h3 className="mb-4" style={{ color: '#a67c52' }}>
-              Total: ${total.toFixed(2)}
-            </h3>
-            <Button 
-              variant="primary"
-              size="lg"
-              className="w-100 mb-2"
-              onClick={() => navigate('/checkout')}
-            >
-              Continua cu Plata
-            </Button>
-            <Link to="/products">
-              <Button variant="secondary" className="w-100">
-                Continua Cumparaturile
-              </Button>
-            </Link>
-          </div>
-        </Col>
-      </Row>
-    </Container>
+   <Container className="cart-page py-4 py-md-5">
+     <h1 className="cart-title">Cosul meu</h1>
+
+     <Table responsive="lg" className="cart-table">
+       <thead>
+         <tr>
+           <th>Produs</th>
+           <th>Disponibilitate</th>
+           <th>Pret cu TVA</th>
+           <th>Cantitate</th>
+           <th>Valoare totala cu TVA</th>
+         </tr>
+       </thead>
+       <tbody>
+         {cartItems.map(item => (
+           <tr key={item.id} className="cart-table-row">
+             <td data-label="Produs" className="cart-product-cell">
+               <button
+                 type="button"
+                 className="cart-remove-icon"
+                 onClick={() => removeItem(item.id)}
+                 aria-label={`Sterge ${item.name}`}
+               >
+                 ×
+               </button>
+               <div className="cart-product-thumb">
+                 {item.imageUrl ? <img src={item.imageUrl} alt={item.name} /> : <div className="cart-thumb-placeholder">✨</div>}
+               </div>
+               <div className="cart-product-info">
+                 <div className="cart-product-name">{item.name}</div>
+                 <button type="button" className="cart-favorite-btn">♡ Adauga la Favorite</button>
+               </div>
+             </td>
+             <td data-label="Disponibilitate" className="cart-availability">
+               In stoc magazin
+             </td>
+             <td data-label="Pret cu TVA" className="cart-price-cell">{money(item.price)} Lei</td>
+             <td data-label="Cantitate" className="cart-qty-cell">
+               <Form.Select
+                 value={item.quantity}
+                 onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
+                 className="cart-qty-select"
+               >
+                 {quantityOptions.map(option => (
+                   <option key={option} value={option}>{option}</option>
+                 ))}
+                 {item.quantity > 10 && <option value={item.quantity}>{item.quantity}</option>}
+               </Form.Select>
+             </td>
+             <td data-label="Valoare totala cu TVA" className="cart-total-cell">
+               {money(Number(item.price) * Number(item.quantity))} Lei
+             </td>
+           </tr>
+         ))}
+       </tbody>
+     </Table>
+
+     <Row className="mt-4 mt-md-5">
+       <Col lg={6}></Col>
+       <Col lg={6}>
+         <div className="cart-summary-card">
+           <div className="cart-summary-line">
+             <span>Total produse fara TVA</span>
+             <strong>{money(subtotalNoVat)} Lei</strong>
+           </div>
+           <div className="cart-summary-line">
+             <span>Total produse cu TVA</span>
+             <strong>{money(total)} Lei</strong>
+           </div>
+           <div className="cart-summary-line">
+             <span>Cost transport <em>(include TVA)</em></span>
+             <strong>{money(shipping)} Lei</strong>
+           </div>
+           <div className="cart-summary-total">
+             <span>TOTAL DE PLATA CU TVA</span>
+             <strong>{money(totalWithVat)} Lei</strong>
+           </div>
+         </div>
+
+         <div className="cart-voucher-card">
+           <p>Ai un cod de voucher / card cadou?</p>
+           <div className="cart-voucher-row">
+             <input type="text" placeholder="Introduceti codul voucherului / cardului cadou" />
+             <button type="button">APLICA DISCOUNTUL</button>
+           </div>
+         </div>
+
+         <div className="cart-actions">
+           <Button variant="dark" className="w-100 mb-2" onClick={() => navigate('/checkout')}>
+             Continua cu plata
+           </Button>
+           <Link to="/products" className="w-100">
+             <Button variant="outline-dark" className="w-100">Continua cumparaturile</Button>
+           </Link>
+         </div>
+       </Col>
+     </Row>
+   </Container>
   )
 }
