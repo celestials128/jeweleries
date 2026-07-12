@@ -16,6 +16,9 @@ public class ProductType {
     @Column(nullable = false, unique = true)
     private String slug;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -41,6 +44,9 @@ public class ProductType {
 
     public String getSlug() { return slug; }
     public void setSlug(String slug) { this.slug = slug; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }

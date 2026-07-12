@@ -40,8 +40,8 @@ export const productAPI = {
 export const productTypeAPI = {
   getAll: () => apiClient.get('/product-types'),
   getAllAdmin: () => apiClient.get('/admin/product-types'),
-  create: (payload: { name: string }) => apiClient.post('/admin/product-types', payload),
-  update: (id: number, payload: { name: string }) => apiClient.put(`/admin/product-types/${id}`, payload),
+  create: (payload: { name: string; description?: string }) => apiClient.post('/admin/product-types', payload),
+  update: (id: number, payload: { name: string; description?: string }) => apiClient.put(`/admin/product-types/${id}`, payload),
   delete: (id: number) => apiClient.delete(`/admin/product-types/${id}`)
 }
 

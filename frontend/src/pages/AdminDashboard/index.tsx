@@ -9,6 +9,7 @@ interface ProductType {
   id: number
   name: string
   slug: string
+  description?: string
 }
 
 interface Product {
@@ -92,8 +93,10 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([])
   const [types, setTypes] = useState<ProductType[]>([])
   const [newTypeName, setNewTypeName] = useState('')
+  const [newTypeDescription, setNewTypeDescription] = useState('')
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null)
   const [editingTypeName, setEditingTypeName] = useState('')
+  const [editingTypeDescription, setEditingTypeDescription] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [orderStatusFilter, setOrderStatusFilter] = useState('all')
@@ -362,8 +365,9 @@ export default function AdminDashboard() {
     const name = newTypeName.trim()
     if (!name) return
     try {
-      await productTypeAPI.create({ name })
+      await productTypeAPI.create({ name, description: newTypeDescription.trim() || undefined })
       setNewTypeName('')
+      setNewTypeDescription('')
       fetchTypes()
       toast.success('Categoria a fost adaugata.')
     } catch (err: any) {
@@ -375,9 +379,10 @@ export default function AdminDashboard() {
     const name = editingTypeName.trim()
     if (!name) return
     try {
-      await productTypeAPI.update(id, { name })
+      await productTypeAPI.update(id, { name, description: editingTypeDescription.trim() || undefined })
       setEditingTypeId(null)
       setEditingTypeName('')
+      setEditingTypeDescription('')
       fetchTypes()
       toast.success('Categoria a fost actualizata.')
     } catch (err: any) {
@@ -658,33 +663,53 @@ export default function AdminDashboard() {
               <Card.Title className="mb-0">Product Categories</Card.Title>
             </Card.Header>
             <Card.Body>
-              <div className="d-flex gap-2 mb-3">
+              <div className="d-flex gap-2 mb-3 flex-column">
                 <Form.Control
                   type="text"
                   placeholder="Add new category (e.g. Bratari)"
                   value={newTypeName}
                   onChange={e => setNewTypeName(e.target.value)}
                 />
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Category description (optional, shown on the products page)"
+                  value={newTypeDescription}
+                  onChange={e => setNewTypeDescription(e.target.value)}
+                />
                 <Button onClick={createType}>Add</Button>
               </div>
               <div className="d-flex flex-column gap-2">
                 {types.map(type => (
-                  <div key={type.id} className="d-flex gap-2 align-items-center">
+                  <div key={type.id} className="d-flex gap-2 align-items-start">
                     {editingTypeId === type.id ? (
-                      <>
+                      <div className="flex-grow-1 d-flex flex-column gap-2">
                         <Form.Control value={editingTypeName} onChange={e => setEditingTypeName(e.target.value)} />
-                        <Button size="sm" onClick={() => saveType(type.id)}>Save</Button>
-                        <Button size="sm" variant="secondary" onClick={() => setEditingTypeId(null)}>Cancel</Button>
-                      </>
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          placeholder="Description (optional)"
+                          value={editingTypeDescription}
+                          onChange={e => setEditingTypeDescription(e.target.value)}
+                        />
+                        <div className="d-flex gap-2">
+                          <Button size="sm" onClick={() => saveType(type.id)}>Save</Button>
+                          <Button size="sm" variant="secondary" onClick={() => { setEditingTypeId(null); setEditingTypeName(''); setEditingTypeDescription('') }}>Cancel</Button>
+                        </div>
+                      </div>
                     ) : (
                       <>
-                        <span className="flex-grow-1">{type.name}</span>
+                        <div className="flex-grow-1">
+                          <div className="fw-semibold">{type.name}</div>
+                          {type.description && <div className="text-muted small">{type.description}</div>}
+                        </div>
                         <Button
                           size="sm"
                           variant="outline-primary"
                           onClick={() => {
                             setEditingTypeId(type.id)
                             setEditingTypeName(type.name)
+                            setEditingTypeDescription(type.description || '')
                           }}
                         >
                           Edit

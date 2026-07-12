@@ -35,6 +35,7 @@ public class ProductTypeService {
         }
 
         ProductType entity = new ProductType(name, slug);
+        if (payload.getDescription() != null) entity.setDescription(payload.getDescription().trim());
         return productTypeRepository.save(entity);
     }
 
@@ -54,6 +55,7 @@ public class ProductTypeService {
 
         existing.setName(name);
         existing.setSlug(slug);
+        if (payload.getDescription() != null) existing.setDescription(payload.getDescription().trim());
         return productTypeRepository.save(existing);
     }
 
