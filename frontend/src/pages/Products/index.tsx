@@ -65,6 +65,7 @@ export default function Products() {
 
   const section = (searchParams.get('section') || '').toLowerCase()
   const typeSlug = searchParams.get('type') || ''
+  const querySearch = searchParams.get('search') || ''
 
   useEffect(() => {
     productTypeAPI.getAll()
@@ -92,6 +93,10 @@ export default function Products() {
       .catch(err => console.error('Failed to fetch products', err))
       .finally(() => setLoading(false))
   }, [section, typeSlug])
+
+  useEffect(() => {
+    setSearchTerm(querySearch)
+  }, [querySearch])
 
   const activeType = useMemo(() => {
     if (!typeSlug) return null
@@ -138,15 +143,12 @@ export default function Products() {
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()
+    const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean)
     const min = minPrice.trim() === '' ? null : Number(minPrice)
     const max = maxPrice.trim() === '' ? null : Number(maxPrice)
 
-    const filtered = baseProducts.filter(product => {
+    const filteredByFlags = baseProducts.filter(product => {
       const effectivePrice = Number(product.discountedPrice || product.price || 0)
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        product.name.toLowerCase().includes(normalizedSearch) ||
-        (product.description || '').toLowerCase().includes(normalizedSearch)
       const matchesPopular = !onlyPopular || Boolean(product.popular)
       const matchesStock = !onlyInStock || Number(product.stock) > 0
       const matchesDiscount = !onlyDiscounted || Number(product.discountPercent || 0) > 0
@@ -154,8 +156,24 @@ export default function Products() {
       const matchesMin = min === null || (!Number.isNaN(min) && effectivePrice >= min)
       const matchesMax = max === null || (!Number.isNaN(max) && effectivePrice <= max)
 
-      return matchesSearch && matchesPopular && matchesStock && matchesDiscount && matchesHandmade && matchesMin && matchesMax
+      return matchesPopular && matchesStock && matchesDiscount && matchesHandmade && matchesMin && matchesMax
     })
+
+    const matchesAllTokens = (text: string) =>
+      searchTokens.every(token => text.includes(token))
+
+    let filtered = filteredByFlags
+    if (searchTokens.length > 0) {
+      const titleMatches = filteredByFlags.filter(product =>
+        matchesAllTokens((product.name || '').toLowerCase())
+      )
+
+      filtered = titleMatches.length > 0
+        ? titleMatches
+        : filteredByFlags.filter(product =>
+            matchesAllTokens((product.description || '').toLowerCase())
+          )
+    }
 
     filtered.sort((a, b) => {
       const aPrice = Number(a.discountedPrice || a.price || 0)
