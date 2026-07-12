@@ -161,13 +161,6 @@ export default function Login() {
             {mode === 'login' ? 'Inregistreaza-te' : 'Autentifica-te'}
           </button>
         </p>
-
-        {mode === 'login' && (
-          <div className="auth-demo">
-            <span className="auth-demo-label">Demo admin</span>
-            <code>admin</code> / <code>admin</code>
-          </div>
-        )}
       </div>
     </div>
   )

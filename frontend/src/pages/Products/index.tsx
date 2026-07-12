@@ -213,58 +213,6 @@ export default function Products() {
     )
   }
 
-  const filterSidebar = (
-    <aside className="products-filters">
-      <div className="filters-title">Filtre</div>
-
-      <div className="filter-group">
-        <label htmlFor="search-filter">Cauta produs</label>
-        <input
-          id="search-filter"
-          type="text"
-          placeholder="Nume sau descriere..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      <div className="filter-group">
-        <label>Pret (RON)</label>
-        <div className="price-range">
-          <input
-            type="number"
-            min="0"
-            step="1"
-            placeholder="Min"
-            value={minPrice}
-            onChange={e => setMinPrice(e.target.value)}
-          />
-          <input
-            type="number"
-            min="0"
-            step="1"
-            placeholder="Max"
-            value={maxPrice}
-            onChange={e => setMaxPrice(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="filter-group filter-checks">
-        <label><input type="checkbox" checked={onlyInStock} onChange={e => setOnlyInStock(e.target.checked)} /><span>In stoc</span></label>
-        <label><input type="checkbox" checked={onlyDiscounted} onChange={e => setOnlyDiscounted(e.target.checked)} /><span>Cu reducere</span></label>
-        <label><input type="checkbox" checked={onlyPopular} onChange={e => setOnlyPopular(e.target.checked)} /><span>Populare</span></label>
-        <label><input type="checkbox" checked={onlyHandmade} onChange={e => setOnlyHandmade(e.target.checked)} /><span>Handmade</span></label>
-      </div>
-
-      {hasActiveFilters && (
-        <button type="button" className="clear-filters-btn" onClick={clearFilters}>
-          Reseteaza filtrele
-        </button>
-      )}
-    </aside>
-  )
-
   if (loading) return (
     <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
       <Spinner animation="border" style={{ color: '#a67c52' }} />
@@ -289,21 +237,7 @@ export default function Products() {
           )}
         </div>
 
-        {/* Mobile filters toggle */}
-        <button
-          className="mobile-filters-toggle"
-          onClick={() => setMobileFiltersOpen(prev => !prev)}
-        >
-          <span>&#9776; Filtre</span>
-          {hasActiveFilters && <span className="filters-badge">activ</span>}
-        </button>
-
         <div className="products-layout">
-          {/* Left sidebar — always visible on desktop, toggled on mobile */}
-          <div className={`products-sidebar ${mobileFiltersOpen ? 'mobile-open' : ''}`}>
-            {filterSidebar}
-          </div>
-
           <div className="products-main">
             {/* Sort bar */}
             <div className="products-sort-bar">
@@ -312,18 +246,26 @@ export default function Products() {
                   ? `${filteredProducts.length} produs${filteredProducts.length !== 1 ? 'e' : ''}`
                   : 'Niciun produs'}
               </span>
-              <div className="sort-control">
-                <label htmlFor="sort-select">Ordoneaza:</label>
-                <select
-                  id="sort-select"
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as typeof sortBy)}
+              <div className="sort-bar-right">
+                <div className="sort-control">
+                  <label htmlFor="sort-select">Ordoneaza:</label>
+                  <select
+                    id="sort-select"
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                  >
+                    <option value="price-asc">Pret crescator</option>
+                    <option value="price-desc">Pret descrescator</option>
+                    <option value="popular">Cele mai populare</option>
+                    <option value="name-asc">Nume A-Z</option>
+                  </select>
+                </div>
+                <button
+                  className={`filters-toggle-btn ${mobileFiltersOpen ? 'open' : ''}`}
+                  onClick={() => setMobileFiltersOpen(prev => !prev)}
                 >
-                  <option value="price-asc">Pret crescator</option>
-                  <option value="price-desc">Pret descrescator</option>
-                  <option value="popular">Cele mai populare</option>
-                  <option value="name-asc">Nume A-Z</option>
-                </select>
+                  &#9776; Filtre{hasActiveFilters ? ' ●' : ''}
+                </button>
               </div>
             </div>
 
@@ -335,6 +277,46 @@ export default function Products() {
               </div>
             )}
           </div>
+
+          {/* Filters sidebar — right side, toggle to show/hide */}
+          <aside className={`products-filters ${mobileFiltersOpen ? 'open' : 'closed'}`}>
+            <div className="filters-title">
+              <span>Filtre</span>
+              <button type="button" className="filters-close-btn" onClick={() => setMobileFiltersOpen(false)} aria-label="Inchide filtre">✕</button>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="search-filter">Cauta produs</label>
+              <input
+                id="search-filter"
+                type="text"
+                placeholder="Nume sau descriere..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Pret (RON)</label>
+              <div className="price-range">
+                <input type="number" min="0" step="1" placeholder="Min" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+                <input type="number" min="0" step="1" placeholder="Max" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="filter-group filter-checks">
+              <label><input type="checkbox" checked={onlyInStock} onChange={e => setOnlyInStock(e.target.checked)} /><span>In stoc</span></label>
+              <label><input type="checkbox" checked={onlyDiscounted} onChange={e => setOnlyDiscounted(e.target.checked)} /><span>Cu reducere</span></label>
+              <label><input type="checkbox" checked={onlyPopular} onChange={e => setOnlyPopular(e.target.checked)} /><span>Populare</span></label>
+              <label><input type="checkbox" checked={onlyHandmade} onChange={e => setOnlyHandmade(e.target.checked)} /><span>Handmade</span></label>
+            </div>
+
+            {hasActiveFilters && (
+              <button type="button" className="clear-filters-btn" onClick={clearFilters}>
+                Reseteaza filtrele
+              </button>
+            )}
+          </aside>
         </div>
       </Container>
     </div>
