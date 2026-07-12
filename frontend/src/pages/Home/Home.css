@@ -408,10 +408,11 @@
   /* Track gap tighter */
   .carousel-track { gap: 10px; padding: 4px 2px 6px; }
 
-  /* 2 cards fill the available track width evenly */
+  /* Keep 2 fixed cards per row; a single card on last page should not stretch */
   .pcard {
-    flex: 1 1 0;
-    width: auto;
+    flex: 0 0 calc((100% - 10px) / 2);
+    width: calc((100% - 10px) / 2);
+    max-width: calc((100% - 10px) / 2);
   }
 
   .pcard-img-wrap { height: 130px; }
