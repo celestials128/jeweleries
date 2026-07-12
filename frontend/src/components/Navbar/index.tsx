@@ -23,6 +23,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
+  const [cartTotalPrice, setCartTotalPrice] = useState(0)
 
   const handleLogout = () => {
     localStorage.clear()
@@ -41,6 +42,29 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
       .then(res => setProductTypes(Array.isArray(res.data) ? res.data : []))
       .catch(() => setProductTypes([]))
   }, [])
+
+  useEffect(() => {
+    const refreshCartTotal = () => {
+      const raw = JSON.parse(localStorage.getItem('cart') || '[]')
+      const total = Array.isArray(raw)
+        ? raw.reduce((sum, item) => sum + ((Number(item?.price) || 0) * (Number(item?.quantity) || 1)), 0)
+        : 0
+      setCartTotalPrice(total)
+    }
+
+    refreshCartTotal()
+    window.addEventListener('cart:updated', refreshCartTotal)
+    window.addEventListener('storage', refreshCartTotal)
+    return () => {
+      window.removeEventListener('cart:updated', refreshCartTotal)
+      window.removeEventListener('storage', refreshCartTotal)
+    }
+  }, [])
+
+  const cartTotalLabel = cartTotalPrice.toLocaleString('ro-RO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 
   return (
     <header className="navbar-custom">
@@ -67,19 +91,38 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
           </form>
         </div>
 
-        <Nav className="header-links-row">
-          <Nav.Link as={Link} to="/products?section=noutati">Noutati</Nav.Link>
-          {!isAdmin && productTypes.map(type => (
-            <Nav.Link key={type.id} as={Link} to={`/products?type=${encodeURIComponent(type.slug)}`}>
-              {toTitleCase(type.name)}
-            </Nav.Link>
-          ))}
-          {!isAdmin && <Nav.Link as={Link} to="/cart">Cos</Nav.Link>}
-          {isLoggedIn && !isAdmin && <Nav.Link as={Link} to="/orders">Comenzile mele</Nav.Link>}
-          {isAdmin && <Nav.Link as={Link} to="/admin" className="admin-link">Admin</Nav.Link>}
-          {!isLoggedIn && <Nav.Link as={Link} to="/login" className="login-link">Login</Nav.Link>}
-          {isLoggedIn && <Nav.Link onClick={handleLogout} className="logout-btn">Logout</Nav.Link>}
-        </Nav>
+        <div className="header-menu-row">
+          <div className="header-menu-spacer" />
+          <Nav className="header-links-row">
+            <Nav.Link as={Link} to="/products?section=noutati">Noutati</Nav.Link>
+            {!isAdmin && productTypes.map(type => (
+              <Nav.Link key={type.id} as={Link} to={`/products?type=${encodeURIComponent(type.slug)}`}>
+                {toTitleCase(type.name)}
+              </Nav.Link>
+            ))}
+          </Nav>
+          <div className="header-account-cart">
+            {!isAdmin && (
+              <>
+                <Link to={isLoggedIn ? '/orders' : '/login'} className="account-link">
+                  <span className="account-icon">👤</span>
+                  <span>Contul meu</span>
+                  <span className="account-caret">⌄</span>
+                </Link>
+                <Link to="/cart" className="cart-summary-link">
+                  <span className="cart-icon">🛒</span>
+                  <span>{cartTotalLabel} lei</span>
+                </Link>
+              </>
+            )}
+            {isAdmin && <Link to="/admin" className="admin-link">Admin</Link>}
+            {isLoggedIn && (
+              <button type="button" onClick={handleLogout} className="logout-btn-inline">
+                Logout
+              </button>
+            )}
+          </div>
+        </div>
       </Container>
     </header>
   )
