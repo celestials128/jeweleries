@@ -15,6 +15,7 @@ import Login from './pages/Login/index'
 import AdminBlog from './pages/AdminBlog/index'
 import BlogDetail from './pages/BlogDetail/index'
 import ProductDetail from './pages/ProductDetail/index'
+import { authAPI } from './services/api'
 import './App.css'
 
 function AppContent({
@@ -81,6 +82,28 @@ function AppContent({
 export default function App(){
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'))
   const [isAdmin, setIsAdmin] = useState(localStorage.getItem('role') === 'ROLE_ADMIN')
+
+  // On mount: verify role from server so stale sessions are always correct
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    authAPI.me()
+      .then(res => {
+        const role = res.data?.role || ''
+        localStorage.setItem('role', role)
+        setIsLoggedIn(true)
+        setIsAdmin(role === 'ROLE_ADMIN')
+      })
+      .catch(() => {
+        // Token invalid or expired — clear session
+        localStorage.removeItem('token')
+        localStorage.removeItem('role')
+        localStorage.removeItem('username')
+        setIsLoggedIn(false)
+        setIsAdmin(false)
+      })
+  }, [])
 
   return (
     <BrowserRouter>

@@ -50,6 +50,19 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication auth){
+        if(auth == null || auth.getName() == null){
+            return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
+        }
+        try {
+            var user = authService.findByUsername(auth.getName());
+            return ResponseEntity.ok(Map.of("username", user.getUsername(), "role", user.getRole()));
+        } catch(IllegalArgumentException e){
+            return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
+        }
+    }
+
     @PostMapping("/password")
     public ResponseEntity<?> changePassword(@RequestBody Map<String,String> body, Authentication auth){
         try {

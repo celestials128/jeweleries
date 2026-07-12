@@ -24,6 +24,7 @@ apiClient.interceptors.request.use(config => {
 export const authAPI = {
   register: (username: string, password: string) => apiClient.post('/auth/register', { username, password }),
   login: (username: string, password: string) => apiClient.post('/auth/login', { username, password }),
+  me: () => apiClient.get('/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     apiClient.post('/auth/password', { currentPassword, newPassword })
 }
