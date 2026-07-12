@@ -44,7 +44,7 @@ public class AuthController {
                 return ResponseEntity.status(401).body(Map.of("error", INVALID_CREDENTIALS_MESSAGE));
             }
             String token = jwtUtil.generateToken(username);
-            return ResponseEntity.ok(Map.of("token", token));
+            return ResponseEntity.ok(Map.of("token", token, "role", user.getRole(), "username", username));
         } catch(IllegalArgumentException e){
             return ResponseEntity.status(401).body(Map.of("error", INVALID_CREDENTIALS_MESSAGE));
         }

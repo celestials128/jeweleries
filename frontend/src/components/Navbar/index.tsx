@@ -194,8 +194,8 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
               </>
             )}
 
-            {/* Orders - shown for all logged in users */}
-            {isLoggedIn && <Nav.Link as={Link} to="/orders">Comenzi</Nav.Link>}
+            {/* Orders - shown for logged-in non-admin users only */}
+            {isLoggedIn && !isAdmin && <Nav.Link as={Link} to="/orders">Comenzile mele</Nav.Link>}
 
             {/* Admin - shown only for admins */}
             {isAdmin && <Nav.Link as={Link} to="/admin" className="admin-link">⚙️ Admin</Nav.Link>}
