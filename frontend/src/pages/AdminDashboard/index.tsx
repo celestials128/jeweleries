@@ -117,7 +117,7 @@ export default function AdminDashboard() {
   const [editingTypeDescription, setEditingTypeDescription] = useState('')
 
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users' | 'settings'>('products')
 
   // Users tab state
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -550,6 +550,7 @@ export default function AdminDashboard() {
             <button className={`admin-tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produse & Categorii</button>
             <button className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Comenzi</button>
             <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); if (users.length === 0) fetchUsers() }}>Utilizatori</button>
+            <button className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Setari</button>
           </div>
         </Col>
       </Row>
@@ -805,48 +806,6 @@ export default function AdminDashboard() {
                     </Button>
                   )}
                 </div>
-              </Form>
-            </Card.Body>
-          </Card>
-
-          <Card className="admin-card shadow-sm border-0 mt-4">
-            <Card.Header className="admin-card-header">
-              <Card.Title className="mb-0">Admin Password</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <Form onSubmit={handlePasswordUpdate}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Current Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={currentPassword}
-                    onChange={e => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Confirm New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </Form.Group>
-                <Button type="submit" className="admin-btn-submit w-100" disabled={passwordLoading}>
-                  {passwordLoading ? <><Spinner size="sm" className="me-2" />Updating...</> : 'Update Password'}
-                </Button>
               </Form>
             </Card.Body>
           </Card>
@@ -1127,6 +1086,52 @@ export default function AdminDashboard() {
               )}
             </Card.Body>
           </Card>
+          </Col>
+        )}
+
+        {activeTab === 'settings' && (
+          <Col md={6} lg={4}>
+            <Card className="admin-card shadow-sm border-0">
+              <Card.Header className="admin-card-header">
+                <Card.Title className="mb-0">Schimba Parola</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <Form onSubmit={handlePasswordUpdate}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Parola curenta</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      required
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Parola noua</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Confirma parola noua</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </Form.Group>
+                  <Button type="submit" className="admin-btn-submit w-100" disabled={passwordLoading}>
+                    {passwordLoading ? <><Spinner size="sm" className="me-2" />Se salveaza...</> : 'Actualizeaza parola'}
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
           </Col>
         )}
       </Row>
