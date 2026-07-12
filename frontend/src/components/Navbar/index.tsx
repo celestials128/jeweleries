@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Nav, Container } from 'react-bootstrap'
+import { productTypeAPI } from '../../services/api'
 import './Navbar.css'
 
 interface NavbarProps {
@@ -9,9 +10,19 @@ interface NavbarProps {
   onLogout: () => void
 }
 
+interface ProductType {
+  id: number
+  name: string
+  slug: string
+}
+
+const toTitleCase = (value: string) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : value
+
 export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [productTypes, setProductTypes] = useState<ProductType[]>([])
 
   const handleLogout = () => {
     localStorage.clear()
@@ -24,6 +35,12 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
     const q = search.trim()
     navigate(q ? `/products?search=${encodeURIComponent(q)}` : '/products')
   }
+
+  useEffect(() => {
+    productTypeAPI.getAll()
+      .then(res => setProductTypes(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setProductTypes([]))
+  }, [])
 
   return (
     <header className="navbar-custom">
@@ -52,7 +69,11 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
 
         <Nav className="header-links-row">
           <Nav.Link as={Link} to="/products?section=noutati">Noutati</Nav.Link>
-          {!isAdmin && <Nav.Link as={Link} to="/products">Shop</Nav.Link>}
+          {!isAdmin && productTypes.map(type => (
+            <Nav.Link key={type.id} as={Link} to={`/products?type=${encodeURIComponent(type.slug)}`}>
+              {toTitleCase(type.name)}
+            </Nav.Link>
+          ))}
           {!isAdmin && <Nav.Link as={Link} to="/cart">Cos</Nav.Link>}
           {isLoggedIn && !isAdmin && <Nav.Link as={Link} to="/orders">Comenzile mele</Nav.Link>}
           {isAdmin && <Nav.Link as={Link} to="/admin" className="admin-link">Admin</Nav.Link>}
