@@ -43,7 +43,7 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return web -> web.ignoring().requestMatchers("/api/payments/netopia/**");
+        return web -> web.ignoring().requestMatchers("/api/payments/netopia/**", "/api/payments/stripe/webhook");
     }
 
     @Bean
@@ -60,6 +60,18 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
+    public SecurityFilterChain stripeSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/payments/stripe/**")
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authz -> authz.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(3)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception{
         http
             .securityMatcher("/api/**", "/v3/**", "/swagger-ui/**", "/swagger-ui.html", "/health")
@@ -100,6 +112,7 @@ public class SecurityConfig {
             "Origin",
             "X-Requested-With",
             "X-Netopia-Signature",
+            "Stripe-Signature",
             "X-User-Id"
         ));
         config.setExposedHeaders(Arrays.asList("Authorization"));

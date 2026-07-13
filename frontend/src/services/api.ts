@@ -105,4 +105,13 @@ export const netopiaAPI = {
   }) => apiClient.post('/payments/netopia/start', payload)
 }
 
+export const stripeAPI = {
+  getStatus: () => apiClient.get('/payments/stripe/status'),
+  startCheckout: (payload: {
+    items: Array<{ productId: number; quantity: number }>
+    successUrl?: string
+    cancelUrl?: string
+  }) => apiClient.post('/payments/stripe/start', payload)
+}
+
 export default apiClient

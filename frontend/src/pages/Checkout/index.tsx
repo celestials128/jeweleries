@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Row, Col, Form, Button, Spinner } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { authAPI, netopiaAPI, orderAPI } from '../../services/api'
+import { authAPI, netopiaAPI, stripeAPI, orderAPI } from '../../services/api'
 import './Checkout.css'
 
 interface CartItem {
@@ -39,24 +39,29 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
   const [billing, setBilling] = useState<BillingInfo>(EMPTY_BILLING)
   const [loading, setLoading] = useState(false)
   const [validated, setValidated] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<'CARD_ONLINE' | 'CASH_ON_DELIVERY'>('CARD_ONLINE')
+  const [paymentMethod, setPaymentMethod] = useState<'CARD_STRIPE' | 'CARD_NETOPIA' | 'CASH_ON_DELIVERY'>('CARD_STRIPE')
   const [createAccount, setCreateAccount] = useState(false)
   const [password, setPassword] = useState('')
   const [netopiaConfigured, setNetopiaConfigured] = useState(false)
+  const [stripeConfigured, setStripeConfigured] = useState(false)
 
   useEffect(() => {
-    netopiaAPI.getStatus()
-      .then(res => {
-        const configured = Boolean(res.data?.configured)
-        setNetopiaConfigured(configured)
-        if (!configured) {
-          setPaymentMethod('CASH_ON_DELIVERY')
-        }
-      })
-      .catch(() => {
-        setNetopiaConfigured(false)
+    Promise.allSettled([
+      stripeAPI.getStatus(),
+      netopiaAPI.getStatus()
+    ]).then(([stripeResult, netopiaResult]) => {
+      const stripeOk = stripeResult.status === 'fulfilled' && Boolean(stripeResult.value.data?.configured)
+      const netopiaOk = netopiaResult.status === 'fulfilled' && Boolean(netopiaResult.value.data?.configured)
+      setStripeConfigured(stripeOk)
+      setNetopiaConfigured(netopiaOk)
+      if (stripeOk) {
+        setPaymentMethod('CARD_STRIPE')
+      } else if (netopiaOk) {
+        setPaymentMethod('CARD_NETOPIA')
+      } else {
         setPaymentMethod('CASH_ON_DELIVERY')
-      })
+      }
+    })
   }, [])
 
   const handleBillingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,6 +114,20 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
         return
       }
 
+      if (paymentMethod === 'CARD_STRIPE') {
+        const response = await stripeAPI.startCheckout({
+          items: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
+          successUrl: `${window.location.origin}/orders?payment=success`,
+          cancelUrl: `${window.location.origin}/checkout?payment=cancelled`
+        })
+        localStorage.removeItem('cart')
+        window.dispatchEvent(new Event('cart:updated'))
+        toast.info('Redirectam catre plata securizata Stripe...')
+        window.location.href = response.data.checkoutUrl
+        return
+      }
+
+      // CARD_NETOPIA
       const response = await netopiaAPI.startCheckout({
         items: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
         billing,
@@ -265,12 +284,21 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
         <div className="co-payment-options">
           <Form.Check
             type="radio"
-            id="payment-card"
+            id="payment-stripe"
+            name="paymentMethod"
+            label="Card online (Stripe)"
+            checked={paymentMethod === 'CARD_STRIPE'}
+            disabled={!stripeConfigured}
+            onChange={() => setPaymentMethod('CARD_STRIPE')}
+          />
+          <Form.Check
+            type="radio"
+            id="payment-netopia"
             name="paymentMethod"
             label="Card online (NETOPIA)"
-            checked={paymentMethod === 'CARD_ONLINE'}
+            checked={paymentMethod === 'CARD_NETOPIA'}
             disabled={!netopiaConfigured}
-            onChange={() => setPaymentMethod('CARD_ONLINE')}
+            onChange={() => setPaymentMethod('CARD_NETOPIA')}
           />
           <Form.Check
             type="radio"
@@ -282,11 +310,11 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
           />
         </div>
         <div className="co-note mt-3">
-          {!netopiaConfigured
-            ? 'Plata cu cardul nu este configurata local, astfel incat poti folosi cash la livrare.'
-            : paymentMethod === 'CASH_ON_DELIVERY'
-            ? 'Plasezi comanda acum si platesti curierului la livrare.'
-            : 'Vei fi redirectionat catre plata securizata NETOPIA.'
+          {paymentMethod === 'CARD_STRIPE'
+            ? 'Vei fi redirectionat catre plata securizata Stripe.'
+            : paymentMethod === 'CARD_NETOPIA'
+            ? 'Vei fi redirectionat catre plata securizata NETOPIA.'
+            : 'Plasezi comanda acum si platesti curierului la livrare.'
           }
         </div>
       </div>
@@ -295,7 +323,7 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
         <Form.Check
           type="checkbox"
           id="create-account"
-          label="Creeaza-mi un cont Celestials"
+          label="Creeaza-mi un cont"
           checked={createAccount}
           onChange={e => setCreateAccount(e.target.checked)}
         />
@@ -317,7 +345,7 @@ function CheckoutForm({ cartItems, total }: { cartItems: CartItem[]; total: numb
       </div>
 
       <div className="co-section co-note">
-        <strong>NETOPIA</strong> deschide plata intr-o pagina securizata. Vei reveni automat dupa confirmare.
+        <strong>Stripe</strong> / <strong>NETOPIA</strong> deschid plata intr-o pagina securizata. Vei reveni automat dupa confirmare.
       </div>
 
       <Button type="submit" variant="primary" size="lg" className="w-100 co-pay-btn" disabled={loading}>
@@ -384,7 +412,7 @@ export default function Checkout() {
               <span>{total.toFixed(2)} RON</span>
             </div>
             <div className="co-secure-badge">
-              Plata securizata prin NETOPIA
+              Plata securizata prin Stripe / NETOPIA
             </div>
           </div>
         </Col>

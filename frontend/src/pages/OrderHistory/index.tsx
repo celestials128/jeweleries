@@ -57,7 +57,7 @@ export default function OrderHistory() {
         <div className="oh-empty-state">
           <div className="oh-empty-icon">📦</div>
           <h2>Autentifica-te pentru a vedea comenzile</h2>
-          <p className="text-muted mb-4">Comenzile sunt salvate in contul tau Celestials.</p>
+          <p className="text-muted mb-4">Comenzile sunt salvate in contul tau.</p>
           <Link to="/login">
             <Button variant="primary" size="lg">Conecteaza-te</Button>
           </Link>

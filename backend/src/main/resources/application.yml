@@ -26,6 +26,13 @@ netopia:
   currency: ${NETOPIA_CURRENCY:RON}
   merchant-name: ${NETOPIA_MERCHANT_NAME:Celestials}
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/orders?payment=success}
+  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/checkout?payment=cancelled}
+  currency: ${STRIPE_CURRENCY:RON}
+
 jwt:
   secret: ${JWT_SECRET:changeit123456789012345678901234}
   exp-ms: 3600000

@@ -253,7 +253,7 @@ export default function Home() {
                 <div className="blog-card">
                   <div className="blog-card-body">
                     <p className="blog-meta">
-                      {article.author?.email || 'Celestials'} • {new Date(article.createdAt).toLocaleDateString('ro-RO')}
+                      {article.author?.email || 'Admin'} • {new Date(article.createdAt).toLocaleDateString('ro-RO')}
                     </p>
                     <h4>{article.title}</h4>
                     <p>{article.excerpt || article.content.substring(0, 150)}...</p>

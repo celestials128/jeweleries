@@ -28,6 +28,10 @@ services:
       NETOPIA_START_URL: ${NETOPIA_START_URL:-https://secure.sandbox.netopia-payments.com/payment/card/start}
       NETOPIA_RETURN_URL: ${NETOPIA_RETURN_URL:-http://localhost:3000/orders}
       NETOPIA_PUBLIC_CERT_PATH: ${NETOPIA_PUBLIC_CERT_PATH:-/app/config/netopia/public.cer}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:3000/orders?payment=success}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:3000/checkout?payment=cancelled}
     volumes:
       - ./backend/config/netopia:/app/config/netopia
       - ./uploads:/app/uploads

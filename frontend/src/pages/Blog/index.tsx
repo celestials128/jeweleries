@@ -44,7 +44,7 @@ export default function Blog() {
   return (
     <Container className="py-5">
       <h1 className="text-center mb-5" style={{ fontSize: '48px', letterSpacing: '3px', textTransform: 'uppercase', color: '#2a2a2a' }}>
-        Celestials Blog
+        ASTERIA Blog
       </h1>
       <p className="text-center mb-5" style={{ fontSize: '18px', color: '#666' }}>
         Discover stories, tips, and insights from our jewelry world
