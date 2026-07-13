@@ -47,13 +47,26 @@ const sectionTitles: Record<string, string> = {
   popular: 'Produse Populare'
 }
 
+// Module-level cache so data survives component unmount/remount (navigating away and back)
+const _cache: {
+  types?: ProductType[]
+  products: Record<string, Product[]>
+  newArrivals?: Record<string, Product[]>
+} = { products: {} }
+
 export default function Products() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [products, setProducts] = useState<Product[]>([])
-  const [types, setTypes] = useState<ProductType[]>([])
-  const [newArrivalsByType, setNewArrivalsByType] = useState<Record<string, Product[]>>({})
-  const [loading, setLoading] = useState(true)
+
+  const section = (searchParams.get('section') || '').toLowerCase()
+  const typeSlug = searchParams.get('type') || ''
+  const querySearch = searchParams.get('search') || ''
+  const cacheKey = `${section}|${typeSlug}`
+
+  const [products, setProducts] = useState<Product[]>(() => _cache.products[cacheKey] || [])
+  const [types, setTypes] = useState<ProductType[]>(() => _cache.types || [])
+  const [newArrivalsByType, setNewArrivalsByType] = useState<Record<string, Product[]>>(() => _cache.newArrivals || {})
+  const [loading, setLoading] = useState(() => section === 'noutati' ? !_cache.newArrivals : !_cache.products[cacheKey])
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'popular' | 'name-asc'>('price-asc')
   const [onlyPopular, setOnlyPopular] = useState(false)
@@ -63,36 +76,51 @@ export default function Products() {
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
 
-  const section = (searchParams.get('section') || '').toLowerCase()
-  const typeSlug = searchParams.get('type') || ''
-  const querySearch = searchParams.get('search') || ''
-
   useEffect(() => {
+    if (_cache.types) return
     productTypeAPI.getAll()
-      .then(res => setTypes(Array.isArray(res.data) ? res.data : []))
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : []
+        _cache.types = data
+        setTypes(data)
+      })
       .catch(() => setTypes([]))
   }, [])
 
   useEffect(() => {
-    setLoading(true)
-
     if (section === 'noutati') {
+      if (_cache.newArrivals) return
+      setLoading(true)
       productAPI.getNewArrivals(3)
-        .then(res => setNewArrivalsByType(res.data || {}))
+        .then(res => {
+          _cache.newArrivals = res.data || {}
+          setNewArrivalsByType(_cache.newArrivals!)
+        })
         .catch(() => setNewArrivalsByType({}))
         .finally(() => setLoading(false))
       return
     }
 
+    if (_cache.products[cacheKey]) {
+      setProducts(_cache.products[cacheKey])
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
     const params: { type?: string; section?: string } = {}
     if (typeSlug) params.type = typeSlug
     if (section && section !== 'noutati') params.section = section
 
     productAPI.getAll(params)
-      .then(res => setProducts(Array.isArray(res.data) ? res.data : []))
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : []
+        _cache.products[cacheKey] = data
+        setProducts(data)
+      })
       .catch(err => console.error('Failed to fetch products', err))
       .finally(() => setLoading(false))
-  }, [section, typeSlug])
+  }, [section, typeSlug, cacheKey])
 
   useEffect(() => {
     setSearchTerm(querySearch)

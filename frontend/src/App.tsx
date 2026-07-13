@@ -52,11 +52,13 @@ function AppContent({
           theme="colored"
         />
         <main className="page-content">
-          <Routes>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/blog" element={<AdminBlog />} />
-            <Route path="*" element={<Navigate to="/admin" replace />} />
-          </Routes>
+          <div key={location.key} className="route-view">
+            <Routes>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/blog" element={<AdminBlog />} />
+              <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Routes>
+          </div>
         </main>
       </>
     )
@@ -77,34 +79,36 @@ function AppContent({
         theme="colored"
       />
       <main className="page-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={<OrderHistory />} />
-          <Route path="/blog/:id" element={<BlogDetail />} />
-          <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute isAdmin={isAdmin}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/blog"
-            element={
-              <ProtectedRoute isAdmin={isAdmin}>
-                <AdminBlog />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <div key={location.key} className="route-view">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/orders" element={<OrderHistory />} />
+            <Route path="/blog/:id" element={<BlogDetail />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute isAdmin={isAdmin}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/blog"
+              element={
+                <ProtectedRoute isAdmin={isAdmin}>
+                  <AdminBlog />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </div>
       </main>
     </>
   )

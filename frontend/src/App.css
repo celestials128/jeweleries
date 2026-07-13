@@ -51,6 +51,27 @@ body {
   min-height: calc(100dvh - 130px);
 }
 
+.route-view {
+  animation: routeFadeIn 180ms ease-out both;
+}
+
+@keyframes routeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-view {
+    animation: none;
+  }
+}
+
 .container {
   max-width: 1400px;
   margin: 0 auto;

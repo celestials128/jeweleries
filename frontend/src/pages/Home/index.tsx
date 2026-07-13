@@ -127,17 +127,26 @@ function ProductCarousel({ products, loading, sectionLink, onProductAdded }: {
   )
 }
 
+// Module-level cache so data survives navigation away and back
+const _homeCache: {
+  promotions?: Product[]
+  handmade?: Product[]
+  popular?: Product[]
+  articles?: BlogPost[]
+} = {}
+
 export default function Home() {
-  const [promotions, setPromotions] = useState<Product[]>([])
-  const [handmade, setHandmade] = useState<Product[]>([])
-  const [popular, setPopular] = useState<Product[]>([])
-  const [articles, setArticles] = useState<BlogPost[]>([])
-  const [loading, setLoading] = useState(true)
-  const [articlesLoading, setArticlesLoading] = useState(true)
+  const [promotions, setPromotions] = useState<Product[]>(() => _homeCache.promotions || [])
+  const [handmade, setHandmade] = useState<Product[]>(() => _homeCache.handmade || [])
+  const [popular, setPopular] = useState<Product[]>(() => _homeCache.popular || [])
+  const [articles, setArticles] = useState<BlogPost[]>(() => _homeCache.articles || [])
+  const [loading, setLoading] = useState(() => !_homeCache.promotions)
+  const [articlesLoading, setArticlesLoading] = useState(() => !_homeCache.articles)
   const [sectionFeedback, setSectionFeedback] = useState<Record<string, string>>({})
   const feedbackTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
+    if (_homeCache.promotions) return
     Promise.all([
       productAPI.getAll({ section: 'promotii', limit: 16 }),
       productAPI.getAll({ section: 'handmade', limit: 16 }),
@@ -150,19 +159,24 @@ export default function Home() {
             imageUrl: resolveMediaUrl(product.imageUrl || product.imageUrls?.[0] || '')
           }))
 
-        setPromotions(normalize(promoRes.data))
-        setHandmade(normalize(handmadeRes.data))
-        setPopular(normalize(popularRes.data))
+        _homeCache.promotions = normalize(promoRes.data)
+        _homeCache.handmade = normalize(handmadeRes.data)
+        _homeCache.popular = normalize(popularRes.data)
+        setPromotions(_homeCache.promotions)
+        setHandmade(_homeCache.handmade!)
+        setPopular(_homeCache.popular!)
       })
       .catch(err => console.error('Failed to fetch home products', err))
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
+    if (_homeCache.articles) return
     blogAPI.getPublished()
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : []
-        setArticles(data.slice(0, 3))
+        _homeCache.articles = data.slice(0, 3)
+        setArticles(_homeCache.articles)
       })
       .catch(err => console.error('Failed to fetch blog articles', err))
       .finally(() => setArticlesLoading(false))
