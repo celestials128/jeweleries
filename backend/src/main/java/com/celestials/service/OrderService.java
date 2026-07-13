@@ -142,6 +142,7 @@ public class OrderService {
 
         order.setStatus("PAID");
         order = orderRepository.save(order);
+        sendOrderConfirmationEmail(order, order.getUser());
         sendStatusEmail(order);
     }
 

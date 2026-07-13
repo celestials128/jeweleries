@@ -130,6 +130,7 @@ function CheckoutForm({ cartItems, grandTotal, discountApplied, shippingFee }: {
         })
         localStorage.removeItem('cart')
         localStorage.removeItem('discount')
+        localStorage.setItem('lastOrderId', String(response.data.orderId || ''))
         window.dispatchEvent(new Event('cart:updated'))
         toast.info('Redirectam catre plata securizata Stripe...')
         window.location.href = response.data.checkoutUrl

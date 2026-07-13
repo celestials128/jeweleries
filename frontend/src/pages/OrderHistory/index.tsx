@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Container, Button, Spinner } from 'react-bootstrap'
+﻿import React, { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Container, Button, Spinner, Alert } from 'react-bootstrap'
+import { toast } from 'react-toastify'
 import { orderAPI } from '../../services/api'
 import './OrderHistory.css'
 
@@ -29,7 +30,8 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   PAID:      { label: 'Platita',      cls: 'status-paid' },
   SHIPPED:   { label: 'Expediata',    cls: 'status-shipped' },
   DELIVERED: { label: 'Livrata',      cls: 'status-delivered' },
-  CANCELLED: { label: 'Anulata',      cls: 'status-cancelled' }
+  CANCELLED: { label: 'Anulata',      cls: 'status-cancelled' },
+  PAYMENT_FAILED: { label: 'Plata esuata', cls: 'status-cancelled' }
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -40,7 +42,19 @@ const PAYMENT_LABELS: Record<string, string> = {
 export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(false)
+  const [searchParams] = useSearchParams()
   const isLoggedIn = !!localStorage.getItem('token')
+  const paymentStatus = searchParams.get('payment')
+
+  useEffect(() => {
+    if (paymentStatus === 'success') {
+      toast.success('Plata a fost efectuata cu succes! Comanda ta a fost confirmata.', { autoClose: 6000 })
+      localStorage.removeItem('lastOrderId')
+    } else if (paymentStatus === 'cancelled') {
+      toast.warning('Plata a fost anulata. Comanda nu a fost plasata.')
+    }
+  }, [paymentStatus])
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -49,17 +63,42 @@ export default function OrderHistory() {
     }
     orderAPI.getAll()
       .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setOrders([]))
+      .catch(err => {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          setAuthError(true)
+        }
+        setOrders([])
+      })
       .finally(() => setLoading(false))
   }, [isLoggedIn])
 
   if (!isLoggedIn) {
     return (
       <Container className="py-5 text-center">
+        {paymentStatus === 'success' && (
+          <Alert variant="success" className="mb-4">
+            <strong>Plata confirmata!</strong> Creeaza-ti un cont sau autentifica-te pentru a vedea istoricul comenzilor.
+          </Alert>
+        )}
         <div className="oh-empty-state">
           <div className="oh-empty-icon">📦</div>
           <h2>Autentifica-te pentru a vedea comenzile</h2>
           <p className="text-muted mb-4">Comenzile sunt salvate in contul tau.</p>
+          <Link to="/login">
+            <Button variant="primary" size="lg">Conecteaza-te</Button>
+          </Link>
+        </div>
+      </Container>
+    )
+  }
+
+  if (authError) {
+    return (
+      <Container className="py-5 text-center">
+        <div className="oh-empty-state">
+          <div className="oh-empty-icon">🔒</div>
+          <h2>Sesiunea a expirat</h2>
+          <p className="text-muted mb-4">Te rugam sa te autentifici din nou.</p>
           <Link to="/login">
             <Button variant="primary" size="lg">Conecteaza-te</Button>
           </Link>
@@ -79,6 +118,12 @@ export default function OrderHistory() {
   if (orders.length === 0) {
     return (
       <Container className="py-5 text-center">
+        {paymentStatus === 'success' && (
+          <Alert variant="info" className="mb-4">
+            Comanda ta este in procesare. Poate dura cateva momente sa apara in lista.{' '}
+            <Button variant="link" size="sm" onClick={() => window.location.reload()}>Reincarca</Button>
+          </Alert>
+        )}
         <div className="oh-empty-state">
           <div className="oh-empty-icon">🛍️</div>
           <h2>Nu ai comenzi inca</h2>
@@ -131,13 +176,13 @@ export default function OrderHistory() {
               </div>
 
               <div className="oh-card-footer">
-                  {order.discountCode && Number(order.discountAmount) > 0 && (
-                    <span className="oh-discount">
-                      Discount <strong>{order.discountCode}</strong>: -{Number(order.discountAmount).toFixed(2)} RON
-                    </span>
-                  )}
-                  <span className="oh-total">Total: {Number(order.total).toFixed(2)} RON</span>
-                </div>
+                {order.discountCode && Number(order.discountAmount) > 0 && (
+                  <span className="oh-discount">
+                    Discount <strong>{order.discountCode}</strong>: -{Number(order.discountAmount).toFixed(2)} RON
+                  </span>
+                )}
+                <span className="oh-total">Total: {Number(order.total).toFixed(2)} RON</span>
+              </div>
             </div>
           )
         })}
