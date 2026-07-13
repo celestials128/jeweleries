@@ -18,6 +18,11 @@
   --bs-box-shadow: 0 8px 32px rgba(30, 58, 138, 0.12);
 }
 
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll; /* fallback: always reserve scrollbar space */
+}
+
 body {
   font-family: 'Lato', sans-serif;
   margin: 0;
@@ -26,7 +31,6 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   letter-spacing: 0.3px;
-  overflow-x: hidden;
 }
 
 * {
@@ -37,28 +41,14 @@ body {
   background: #f4f4f4;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: hidden;
+  /* clip horizontal overflow on a wrapper, not body, so scrollbar-gutter works */
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 .page-content {
-  animation: pageFadeIn 320ms ease-out;
-}
-
-@keyframes pageFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-content {
-    animation: none;
-  }
+  min-height: calc(100vh - 130px);
+  min-height: calc(100dvh - 130px);
 }
 
 .container {

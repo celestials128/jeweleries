@@ -32,7 +32,7 @@ function AppContent({
   const location = useLocation()
 
   useEffect(() => {
-    window.scrollTo(0, 0)
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
   }, [location.pathname])
 
   // Admin users are restricted to /admin and /admin/* only
@@ -51,7 +51,7 @@ function AppContent({
           transition={Slide}
           theme="colored"
         />
-        <main key={location.pathname} className="page-content">
+        <main className="page-content">
           <Routes>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/blog" element={<AdminBlog />} />
@@ -76,7 +76,7 @@ function AppContent({
         transition={Slide}
         theme="colored"
       />
-      <main key={location.pathname} className="page-content">
+      <main className="page-content">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
