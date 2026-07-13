@@ -89,7 +89,7 @@ public class NetopiaPaymentService {
             throw new IllegalStateException("NETOPIA signature is not configured");
         }
 
-        Order order = orderService.createPendingOrder(request.items(), user);
+        Order order = orderService.createPendingOrder(request.items(), user, request.discountCode());
         String paymentReference = order.getPaymentReference();
         String xml = buildCheckoutXml(order, request);
         EncryptedPayload payload = encrypt(xml);

@@ -69,7 +69,7 @@ public class StripePaymentService {
             throw new IllegalStateException("Stripe secret key is not configured");
         }
 
-        Order order = orderService.createPendingOrder(request.items(), user);
+        Order order = orderService.createPendingOrder(request.items(), user, request.discountCode());
         String paymentReference = order.getPaymentReference();
 
         String successUrl = StringUtils.hasText(request.successUrl()) ? request.successUrl() : defaultSuccessUrl;

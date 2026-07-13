@@ -79,7 +79,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/product-types","/api/blogs/published","/api/blogs/*","/api/payments/netopia/**","/api/orders","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
+                .requestMatchers("/api/auth/**","/api/products","/api/products/*","/api/product-types","/api/blogs/published","/api/blogs/*","/api/payments/netopia/**","/api/orders","/api/discount-codes/**","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/health").permitAll()
                 .anyRequest().authenticated()
             );
 

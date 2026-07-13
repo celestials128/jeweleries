@@ -116,16 +116,47 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
 
           <Link to="/" className="navbar-logo">ASTERIA</Link>
 
-          <form className="header-search" onSubmit={handleSearch}>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="CAUTA"
-              aria-label="Cauta"
-            />
-            <button type="submit" aria-label="Search">⌕</button>
-          </form>
+          {isAdmin && (
+            <div style={{ justifySelf: 'end' }}>
+            <div className="account-menu-wrap" ref={accountMenuRef}>
+              <button
+                type="button"
+                className="account-link account-toggle-btn"
+                onClick={() => setAccountMenuOpen(prev => !prev)}
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span className="account-icon">👤</span>
+                <span>Contul meu</span>
+                <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
+              </button>
+              {accountMenuOpen && (
+                <div className="account-dropdown-menu">
+                  <button
+                    type="button"
+                    className="account-dropdown-item account-dropdown-logout"
+                    onClick={() => { setAccountMenuOpen(false); handleLogout() }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+            </div>
+          )}
+
+          {!isAdmin && (
+            <form className="header-search" onSubmit={handleSearch}>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="CAUTA"
+                aria-label="Cauta"
+              />
+              <button type="submit" aria-label="Search">⌕</button>
+            </form>
+          )}
 
           <button
             type="button"
@@ -137,80 +168,77 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
           </button>
         </div>
 
+        {!isAdmin && (
         <div className="header-menu-row">
           <div className="header-menu-spacer" />
           <Nav className="header-links-row">
             <Nav.Link as={Link} to="/products?section=noutati">Noutati</Nav.Link>
-            {!isAdmin && productTypes.map(type => (
+            {productTypes.map(type => (
               <Nav.Link key={type.id} as={Link} to={`/products?type=${encodeURIComponent(type.slug)}`}>
                 {toTitleCase(type.name)}
               </Nav.Link>
             ))}
           </Nav>
           <div className="header-account-cart">
-            {!isAdmin && (
-              <>
-                <div className="account-menu-wrap" ref={accountMenuRef}>
-                  <button
-                    type="button"
-                    className="account-link account-toggle-btn"
-                    onClick={() => setAccountMenuOpen(prev => !prev)}
-                    aria-expanded={accountMenuOpen}
-                    aria-haspopup="menu"
-                  >
-                    <span className="account-icon">👤</span>
-                    <span>Contul meu</span>
-                    <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
-                  </button>
+            <div className="account-menu-wrap" ref={accountMenuRef}>
+              <button
+                type="button"
+                className="account-link account-toggle-btn"
+                onClick={() => setAccountMenuOpen(prev => !prev)}
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span className="account-icon">👤</span>
+                <span>Contul meu</span>
+                <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
+              </button>
 
-                  {accountMenuOpen && (
-                    <div className="account-dropdown-menu">
-                      {isLoggedIn ? (
-                        <>
-                          <Link to="/orders" className="account-dropdown-item" onClick={() => setAccountMenuOpen(false)}>
-                            Comenzile mele
-                          </Link>
-                          <button
-                            type="button"
-                            className="account-dropdown-item account-dropdown-logout"
-                            onClick={() => {
-                              setAccountMenuOpen(false)
-                              handleLogout()
-                            }}
-                          >
-                            Logout
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <Link to="/login" className="account-dropdown-login-btn" onClick={() => setAccountMenuOpen(false)}>
-                            Autentificare
-                          </Link>
-                          <div className="account-dropdown-register">
-                            <span>Nu ai Cont?</span>
-                            <Link to="/login" onClick={() => setAccountMenuOpen(false)}>Click aici</Link>
-                          </div>
-                        </>
-                      )}
-                    </div>
+              {accountMenuOpen && (
+                <div className="account-dropdown-menu">
+                  {isLoggedIn ? (
+                    <>
+                      <Link to="/orders" className="account-dropdown-item" onClick={() => setAccountMenuOpen(false)}>
+                        Comenzile mele
+                      </Link>
+                      <button
+                        type="button"
+                        className="account-dropdown-item account-dropdown-logout"
+                        onClick={() => {
+                          setAccountMenuOpen(false)
+                          handleLogout()
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" className="account-dropdown-login-btn" onClick={() => setAccountMenuOpen(false)}>
+                        Autentificare
+                      </Link>
+                      <div className="account-dropdown-register">
+                        <span>Nu ai Cont?</span>
+                        <Link to="/login?tab=register" onClick={() => setAccountMenuOpen(false)}>Click aici</Link>
+                      </div>
+                    </>
                   )}
                 </div>
-                <Link to="/cart" className="cart-summary-link">
-                  <span className="cart-icon-wrap">
-                    <span className="cart-icon">🛒</span>
-                    {cartItemCount > 0 && <span className="cart-count-top">{cartItemCount > 99 ? '99+' : cartItemCount}</span>}
-                  </span>
-                  <span>{cartTotalLabel} lei</span>
-                </Link>
-              </>
-            )}
-            {isAdmin && <Link to="/admin" className="admin-link">Admin</Link>}
+              )}
+            </div>
+            <Link to="/cart" className="cart-summary-link">
+              <span className="cart-icon-wrap">
+                <span className="cart-icon">🛒</span>
+                {cartItemCount > 0 && <span className="cart-count-top">{cartItemCount > 99 ? '99+' : cartItemCount}</span>}
+              </span>
+              <span>{cartTotalLabel} lei</span>
+            </Link>
           </div>
         </div>
+        )}
 
         <div className={`mobile-menu-panel ${mobileMenuOpen ? 'open' : ''}`}>
           <Nav className="mobile-menu-links">
-            <Nav.Link as={Link} to="/products?section=noutati" onClick={() => setMobileMenuOpen(false)}>Noutati</Nav.Link>
+            {!isAdmin && <Nav.Link as={Link} to="/products?section=noutati" onClick={() => setMobileMenuOpen(false)}>Noutati</Nav.Link>}
             {!isAdmin && productTypes.map(type => (
               <Nav.Link
                 key={type.id}
@@ -231,7 +259,6 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
                 </Nav.Link>
               </>
             )}
-            {isAdmin && <Nav.Link as={Link} to="/admin" onClick={() => setMobileMenuOpen(false)}>Admin</Nav.Link>}
             {isLoggedIn && (
               <Nav.Link
                 as="button"

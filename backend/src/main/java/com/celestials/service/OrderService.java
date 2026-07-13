@@ -8,6 +8,7 @@ import com.celestials.repository.OrderRepository;
 import com.celestials.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,10 +19,15 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final EmailService emailService;
+    private final DiscountCodeService discountCodeService;
 
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository){
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository,
+                        EmailService emailService, DiscountCodeService discountCodeService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
+        this.emailService = emailService;
+        this.discountCodeService = discountCodeService;
     }
 
     public List<Order> getUserOrders(User user){
@@ -39,11 +45,16 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(List<Map<String,Object>> items, User user){
-        return createOrder(items, user, "CASH_ON_DELIVERY");
+        return createOrder(items, user, "CASH_ON_DELIVERY", null);
     }
 
     @Transactional
     public Order createOrder(List<Map<String,Object>> items, User user, String paymentMethod){
+        return createOrder(items, user, paymentMethod, null);
+    }
+
+    @Transactional
+    public Order createOrder(List<Map<String,Object>> items, User user, String paymentMethod, String discountCode){
         Order order = buildOrder(items, user);
         String normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
         order.setPaymentMethod(normalizedPaymentMethod);
@@ -52,14 +63,23 @@ public class OrderService {
         } else {
             order.setStatus("CREATED");
         }
-        return orderRepository.save(order);
+        applyDiscount(order, discountCode, user);
+        order = orderRepository.save(order);
+        sendOrderConfirmationEmail(order, user);
+        return order;
     }
 
     @Transactional
     public Order createPendingOrder(List<Map<String,Object>> items, User user){
+        return createPendingOrder(items, user, null);
+    }
+
+    @Transactional
+    public Order createPendingOrder(List<Map<String,Object>> items, User user, String discountCode){
         Order order = buildOrder(items, user);
         order.setStatus("PENDING_PAYMENT");
         order.setPaymentMethod("CARD_ONLINE");
+        applyDiscount(order, discountCode, user);
         order = orderRepository.save(order);
         order.setPaymentReference(String.valueOf(order.getId()));
         return orderRepository.save(order);
@@ -70,7 +90,9 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         order.setStatus(normalizeStatus(newStatus));
-        return orderRepository.save(order);
+        order = orderRepository.save(order);
+        sendStatusEmail(order);
+        return order;
     }
 
     @Transactional
@@ -92,57 +114,40 @@ public class OrderService {
         }
 
         order.setStatus(normalizedStatus);
-        return orderRepository.save(order);
+        order = orderRepository.save(order);
+        sendStatusEmail(order);
+        return order;
     }
 
     @Transactional
     public void markPaidByPaymentReference(String paymentReference){
-        if(paymentReference == null || paymentReference.isBlank()){
-            return;
-        }
+        if(paymentReference == null || paymentReference.isBlank()) return;
 
         Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
-        if(order == null){
-            return;
-        }
-
-        if("PAID".equalsIgnoreCase(order.getStatus())){
-            return;
-        }
+        if(order == null) return;
+        if("PAID".equalsIgnoreCase(order.getStatus())) return;
 
         for(OrderItem item : order.getItems()){
             Product product = item.getProduct();
             int currentStock = product.getStock() == null ? 0 : product.getStock();
             int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
-            if(quantity <= 0){
-                throw new IllegalStateException("Invalid quantity in order item");
-            }
-            if(currentStock < quantity){
-                throw new IllegalStateException("Insufficient stock while capturing payment for " + product.getName());
-            }
+            if(quantity <= 0) throw new IllegalStateException("Invalid quantity in order item");
+            if(currentStock < quantity) throw new IllegalStateException("Insufficient stock while capturing payment for " + product.getName());
             product.setStock(currentStock - quantity);
             productRepository.save(product);
         }
 
         order.setStatus("PAID");
-        orderRepository.save(order);
+        order = orderRepository.save(order);
+        sendStatusEmail(order);
     }
 
     @Transactional
     public void markFailedByPaymentReference(String paymentReference){
-        if(paymentReference == null || paymentReference.isBlank()){
-            return;
-        }
-
+        if(paymentReference == null || paymentReference.isBlank()) return;
         Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
-        if(order == null){
-            return;
-        }
-
-        if("PAID".equalsIgnoreCase(order.getStatus())){
-            return;
-        }
-
+        if(order == null) return;
+        if("PAID".equalsIgnoreCase(order.getStatus())) return;
         order.setStatus("PAYMENT_FAILED");
         orderRepository.save(order);
     }
@@ -153,21 +158,49 @@ public class OrderService {
 
     @Transactional
     public void markCanceledByPaymentReference(String paymentReference){
-        if(paymentReference == null || paymentReference.isBlank()){
-            return;
-        }
-
+        if(paymentReference == null || paymentReference.isBlank()) return;
         Order order = orderRepository.findByPaymentReference(paymentReference).orElse(null);
-        if(order == null){
-            return;
-        }
-
-        if("PAID".equalsIgnoreCase(order.getStatus())){
-            return;
-        }
-
+        if(order == null) return;
+        if("PAID".equalsIgnoreCase(order.getStatus())) return;
         order.setStatus("CANCELLED");
         orderRepository.save(order);
+    }
+
+    private void applyDiscount(Order order, String discountCode, User user) {
+        if (!StringUtils.hasText(discountCode)) {
+            order.setDiscountAmount(BigDecimal.ZERO);
+            return;
+        }
+        String username = user != null ? user.getUsername() : null;
+        BigDecimal discountAmount = discountCodeService.applyCode(discountCode, order.getTotal(), username);
+        order.setDiscountCode(discountCode.toUpperCase());
+        order.setDiscountAmount(discountAmount);
+        order.setTotal(order.getTotal().subtract(discountAmount).max(BigDecimal.ZERO));
+    }
+
+    private void sendOrderConfirmationEmail(Order order, User user) {
+        if (user == null) return;
+        String email = resolveEmail(user);
+        if (StringUtils.hasText(email)) {
+            try { emailService.sendOrderConfirmationEmail(email, order); } catch (Exception ignored) {}
+        }
+    }
+
+    private void sendStatusEmail(Order order) {
+        User user = order.getUser();
+        if (user == null) return;
+        String status = order.getStatus();
+        if (!"PAID".equals(status) && !"SHIPPED".equals(status) && !"CANCELLED".equals(status) && !"DELIVERED".equals(status)) return;
+        String email = resolveEmail(user);
+        if (StringUtils.hasText(email)) {
+            try { emailService.sendOrderStatusUpdateEmail(email, order); } catch (Exception ignored) {}
+        }
+    }
+
+    private String resolveEmail(User user) {
+        if (StringUtils.hasText(user.getEmail())) return user.getEmail();
+        if (user.getUsername() != null && user.getUsername().contains("@")) return user.getUsername();
+        return null;
     }
 
     private Order buildOrder(List<Map<String,Object>> items, User user){
@@ -180,9 +213,7 @@ public class OrderService {
 
         BigDecimal total = BigDecimal.ZERO;
         for(Map<String,Object> item : items){
-            if(item == null){
-                throw new IllegalArgumentException("Invalid order item");
-            }
+            if(item == null) throw new IllegalArgumentException("Invalid order item");
 
             Object productIdValue = item.get("productId");
             Object quantityValue = item.get("quantity");
@@ -193,17 +224,13 @@ public class OrderService {
             Long productId = ((Number) productIdValue).longValue();
             Integer qty = ((Number) quantityValue).intValue();
 
-            if(qty <= 0){
-                throw new IllegalArgumentException("Quantity must be positive");
-            }
+            if(qty <= 0) throw new IllegalArgumentException("Quantity must be positive");
 
             Product prod = productRepository.findById(productId)
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + productId));
 
             int stock = prod.getStock() == null ? 0 : prod.getStock();
-            if(stock < qty){
-                throw new IllegalArgumentException("Insufficient stock for " + prod.getName());
-            }
+            if(stock < qty) throw new IllegalArgumentException("Insufficient stock for " + prod.getName());
 
             OrderItem oi = new OrderItem(prod, qty, prod.getPrice());
             oi.setOrder(order);
@@ -216,22 +243,18 @@ public class OrderService {
     }
 
     private String normalizeStatus(String status){
-        if(status == null || status.isBlank()){
-            return "CREATED";
-        }
+        if(status == null || status.isBlank()) return "CREATED";
         return status.trim().toUpperCase();
     }
 
     private String normalizePaymentMethod(String paymentMethod){
-        if(paymentMethod == null || paymentMethod.isBlank()){
-            return "CASH_ON_DELIVERY";
-        }
+        if(paymentMethod == null || paymentMethod.isBlank()) return "CASH_ON_DELIVERY";
 
         String normalized = paymentMethod.trim().toUpperCase().replace('-', '_').replace(' ', '_');
         if ("COD".equals(normalized) || "CASH_ON_DELIVERY".equals(normalized) || "CASH".equals(normalized)) {
             return "CASH_ON_DELIVERY";
         }
-        if ("CARD".equals(normalized) || "CARD_ONLINE".equals(normalized) || "NETOPIA".equals(normalized)) {
+        if ("CARD".equals(normalized) || "CARD_ONLINE".equals(normalized) || "NETOPIA".equals(normalized) || "STRIPE".equals(normalized)) {
             return "CARD_ONLINE";
         }
         return "CASH_ON_DELIVERY";

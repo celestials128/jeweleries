@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import { ToastContainer, Slide } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -15,6 +15,8 @@ import Login from './pages/Login/index'
 import AdminBlog from './pages/AdminBlog/index'
 import BlogDetail from './pages/BlogDetail/index'
 import ProductDetail from './pages/ProductDetail/index'
+import ForgotPassword from './pages/ForgotPassword/index'
+import ResetPassword from './pages/ResetPassword/index'
 import { authAPI } from './services/api'
 import './App.css'
 
@@ -32,6 +34,33 @@ function AppContent({
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Admin users are restricted to /admin and /admin/* only
+  if (isAdmin) {
+    return (
+      <>
+        <Navbar isLoggedIn={isLoggedIn} isAdmin={isAdmin} onLogout={onLogout} />
+        <ToastContainer
+          position="top-right"
+          autoClose={1000}
+          newestOnTop={false}
+          pauseOnFocusLoss={false}
+          pauseOnHover
+          closeOnClick={false}
+          draggable={false}
+          transition={Slide}
+          theme="colored"
+        />
+        <main key={location.pathname} className="page-content">
+          <Routes>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/blog" element={<AdminBlog />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Routes>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>
@@ -57,6 +86,8 @@ function AppContent({
           <Route path="/orders" element={<OrderHistory />} />
           <Route path="/blog/:id" element={<BlogDetail />} />
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/admin"
             element={
@@ -105,16 +136,18 @@ export default function App(){
       })
   }, [])
 
+  const handleLogout = () => {
+    localStorage.clear()
+    setIsLoggedIn(false)
+    setIsAdmin(false)
+  }
+
   return (
     <BrowserRouter>
       <AppContent
         isLoggedIn={isLoggedIn}
         isAdmin={isAdmin}
-        onLogout={() => {
-          localStorage.clear()
-          setIsLoggedIn(false)
-          setIsAdmin(false)
-        }}
+        onLogout={handleLogout}
       />
     </BrowserRouter>
   )

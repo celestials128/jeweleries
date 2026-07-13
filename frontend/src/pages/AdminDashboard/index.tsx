@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI } from '../../services/api'
+import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI, discountAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
 
@@ -71,6 +71,19 @@ interface Order {
   createdAt: string
 }
 
+interface DiscountCode {
+  id: number
+  code: string
+  type: 'PERCENTAGE' | 'FIXED'
+  value: number
+  assignedUsername?: string
+  maxUses?: number
+  usedCount: number
+  expiresAt?: string
+  active: boolean
+  createdAt: string
+}
+
 const EMPTY_FORM: ProductForm = {
   name: '',
   description: '',
@@ -117,7 +130,7 @@ export default function AdminDashboard() {
   const [editingTypeDescription, setEditingTypeDescription] = useState('')
 
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users' | 'settings'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users' | 'discounts' | 'settings'>('products')
 
   // Users tab state
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -135,6 +148,11 @@ export default function AdminDashboard() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // Discount codes state
+  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
+  const [discountCodesLoading, setDiscountCodesLoading] = useState(false)
+  const [discountForm, setDiscountForm] = useState({ code: '', type: 'PERCENTAGE', value: '', assignedUsername: '', maxUses: '', expiresAt: '' })
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
@@ -193,6 +211,54 @@ export default function AdminDashboard() {
       .then(res => setUsers(Array.isArray(res.data) ? res.data : []))
       .catch(() => toast.error('Nu s-au putut incarca utilizatorii.'))
       .finally(() => setUsersLoading(false))
+  }
+
+  const fetchDiscountCodes = () => {
+    setDiscountCodesLoading(true)
+    discountAPI.getAll()
+      .then(res => setDiscountCodes(Array.isArray(res.data) ? res.data : []))
+      .catch(() => toast.error('Nu s-au putut incarca codurile de discount.'))
+      .finally(() => setDiscountCodesLoading(false))
+  }
+
+  const handleCreateDiscountCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const payload: any = {
+        code: discountForm.code.trim().toUpperCase(),
+        type: discountForm.type,
+        value: discountForm.value
+      }
+      if (discountForm.assignedUsername.trim()) payload.assignedUsername = discountForm.assignedUsername.trim()
+      if (discountForm.maxUses.trim()) payload.maxUses = discountForm.maxUses.trim()
+      if (discountForm.expiresAt.trim()) payload.expiresAt = new Date(discountForm.expiresAt).toISOString()
+      await discountAPI.create(payload)
+      toast.success('Cod creat!')
+      setDiscountForm({ code: '', type: 'PERCENTAGE', value: '', assignedUsername: '', maxUses: '', expiresAt: '' })
+      fetchDiscountCodes()
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Eroare la creare cod.')
+    }
+  }
+
+  const handleDeleteDiscountCode = async (id: number) => {
+    if (!window.confirm('Sterge codul de discount?')) return
+    try {
+      await discountAPI.delete(id)
+      toast.success('Cod sters.')
+      setDiscountCodes(prev => prev.filter(dc => dc.id !== id))
+    } catch {
+      toast.error('Eroare la stergere.')
+    }
+  }
+
+  const handleToggleDiscountCode = async (id: number) => {
+    try {
+      const res = await discountAPI.toggle(id)
+      setDiscountCodes(prev => prev.map(dc => dc.id === id ? res.data : dc))
+    } catch {
+      toast.error('Eroare la actualizare.')
+    }
   }
 
   const toggleUserOrders = async (userId: number) => {
@@ -550,6 +616,7 @@ export default function AdminDashboard() {
             <button className={`admin-tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produse & Categorii</button>
             <button className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Comenzi</button>
             <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); if (users.length === 0) fetchUsers() }}>Utilizatori</button>
+            <button className={`admin-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => { setActiveTab('discounts'); if (discountCodes.length === 0) fetchDiscountCodes() }}>Discounturi</button>
             <button className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Setari</button>
           </div>
         </Col>
@@ -1086,6 +1153,154 @@ export default function AdminDashboard() {
               )}
             </Card.Body>
           </Card>
+          </Col>
+        )}
+
+        {activeTab === 'discounts' && (
+          <Col xs={12}>
+            <Card className="admin-card shadow-sm border-0 mb-4">
+              <Card.Header className="admin-card-header">
+                <Card.Title className="mb-0">Creeaza cod de discount</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <Form onSubmit={handleCreateDiscountCode}>
+                  <Row className="g-3">
+                    <Col sm={6} md={3}>
+                      <Form.Group>
+                        <Form.Label>Cod *</Form.Label>
+                        <Form.Control
+                          value={discountForm.code}
+                          onChange={e => setDiscountForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                          placeholder="ex: VARA20"
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col sm={6} md={2}>
+                      <Form.Group>
+                        <Form.Label>Tip *</Form.Label>
+                        <Form.Select value={discountForm.type} onChange={e => setDiscountForm(f => ({ ...f, type: e.target.value }))}>
+                          <option value="PERCENTAGE">Procent (%)</option>
+                          <option value="FIXED">Fix (RON)</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col sm={6} md={2}>
+                      <Form.Group>
+                        <Form.Label>Valoare *</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={discountForm.value}
+                          onChange={e => setDiscountForm(f => ({ ...f, value: e.target.value }))}
+                          placeholder={discountForm.type === 'PERCENTAGE' ? '10' : '50'}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col sm={6} md={3}>
+                      <Form.Group>
+                        <Form.Label>Utilizator (optional)</Form.Label>
+                        <Form.Control
+                          value={discountForm.assignedUsername}
+                          onChange={e => setDiscountForm(f => ({ ...f, assignedUsername: e.target.value }))}
+                          placeholder="Lasă gol = general"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col sm={6} md={2}>
+                      <Form.Group>
+                        <Form.Label>Max utilizari</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="1"
+                          value={discountForm.maxUses}
+                          onChange={e => setDiscountForm(f => ({ ...f, maxUses: e.target.value }))}
+                          placeholder="nelimitat"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col sm={6} md={3}>
+                      <Form.Group>
+                        <Form.Label>Expira la</Form.Label>
+                        <Form.Control
+                          type="datetime-local"
+                          value={discountForm.expiresAt}
+                          onChange={e => setDiscountForm(f => ({ ...f, expiresAt: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col sm={12} md={2} className="d-flex align-items-end">
+                      <Button type="submit" variant="primary" className="w-100">
+                        Creeaza
+                      </Button>
+                    </Col>
+                  </Row>
+                </Form>
+              </Card.Body>
+            </Card>
+
+            <Card className="admin-card shadow-sm border-0">
+              <Card.Header className="admin-card-header d-flex justify-content-between align-items-center">
+                <Card.Title className="mb-0">Coduri de discount ({discountCodes.length})</Card.Title>
+                <Button size="sm" variant="outline-primary" onClick={fetchDiscountCodes} disabled={discountCodesLoading}>
+                  {discountCodesLoading ? <Spinner size="sm" animation="border" /> : '↻ Reincarca'}
+                </Button>
+              </Card.Header>
+              <Card.Body className="table-responsive">
+                {discountCodesLoading ? (
+                  <div className="text-center py-5"><Spinner animation="border" /></div>
+                ) : discountCodes.length === 0 ? (
+                  <p className="text-muted text-center py-4">Nu exista coduri de discount.</p>
+                ) : (
+                  <Table hover className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Cod</th>
+                        <th>Tip</th>
+                        <th>Valoare</th>
+                        <th>Utilizator</th>
+                        <th>Max</th>
+                        <th>Utilizat</th>
+                        <th>Expira</th>
+                        <th>Activ</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discountCodes.map(dc => (
+                        <tr key={dc.id}>
+                          <td><strong>{dc.code}</strong></td>
+                          <td>{dc.type === 'PERCENTAGE' ? 'Procent' : 'Fix'}</td>
+                          <td>{dc.type === 'PERCENTAGE' ? `${dc.value}%` : `${dc.value} RON`}</td>
+                          <td>{dc.assignedUsername || <span className="text-muted">General</span>}</td>
+                          <td>{dc.maxUses ?? <span className="text-muted">∞</span>}</td>
+                          <td>{dc.usedCount}</td>
+                          <td style={{ fontSize: '0.85rem' }}>
+                            {dc.expiresAt ? new Date(dc.expiresAt).toLocaleDateString('ro-RO') : <span className="text-muted">-</span>}
+                          </td>
+                          <td>
+                            <Button
+                              size="sm"
+                              variant={dc.active ? 'success' : 'secondary'}
+                              onClick={() => handleToggleDiscountCode(dc.id)}
+                            >
+                              {dc.active ? 'Activ' : 'Inactiv'}
+                            </Button>
+                          </td>
+                          <td>
+                            <Button size="sm" variant="outline-danger" onClick={() => handleDeleteDiscountCode(dc.id)}>
+                              Sterge
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Card.Body>
+            </Card>
           </Col>
         )}
 

@@ -6,7 +6,8 @@ import java.util.Map;
 public record NetopiaCheckoutRequest(
         List<Map<String, Object>> items,
         BillingInfo billing,
-        String returnUrl
+        String returnUrl,
+        String discountCode
 ) {
     public record BillingInfo(
             String firstName,

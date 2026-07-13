@@ -29,6 +29,10 @@ public class Order {
     @Column(unique = true)
     private String paymentReference;
 
+    private String discountCode;
+
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -44,4 +48,6 @@ public class Order {
     public String getPaymentReference(){return paymentReference;}
     public void setPaymentReference(String paymentReference){this.paymentReference = paymentReference;}
     public List<OrderItem> getItems(){return items;} public void setItems(List<OrderItem> items){this.items = items;}
+    public String getDiscountCode(){return discountCode;} public void setDiscountCode(String discountCode){this.discountCode = discountCode;}
+    public BigDecimal getDiscountAmount(){return discountAmount;} public void setDiscountAmount(BigDecimal discountAmount){this.discountAmount = discountAmount;}
 }

@@ -6,5 +6,6 @@ import java.util.Map;
 public record StripeCheckoutRequest(
         List<Map<String, Object>> items,
         String successUrl,
-        String cancelUrl
+        String cancelUrl,
+        String discountCode
 ) {}

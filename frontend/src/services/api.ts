@@ -26,7 +26,11 @@ export const authAPI = {
   login: (username: string, password: string) => apiClient.post('/auth/login', { username, password }),
   me: () => apiClient.get('/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
-    apiClient.post('/auth/password', { currentPassword, newPassword })
+    apiClient.post('/auth/password', { currentPassword, newPassword }),
+  forgotPassword: (usernameOrEmail: string) =>
+    apiClient.post('/auth/forgot-password', { usernameOrEmail }),
+  resetPassword: (token: string, newPassword: string) =>
+    apiClient.post('/auth/reset-password', { token, newPassword })
 }
 
 export const productAPI = {
@@ -78,7 +82,8 @@ export const orderAPI = {
   getAll: () => apiClient.get('/orders'),
   getAllAdmin: () => apiClient.get('/admin/orders'),
   getById: (id: number) => apiClient.get(`/orders/${id}`),
-  create: (items: any[], paymentMethod: string = 'CASH_ON_DELIVERY') => apiClient.post('/orders', { items, paymentMethod }),
+  create: (items: any[], paymentMethod: string = 'CASH_ON_DELIVERY', discountCode?: string) =>
+    apiClient.post('/orders', { items, paymentMethod, discountCode }),
   updateStatus: (id: number, status: string) => apiClient.put(`/orders/${id}/status`, { status })
 }
 
@@ -102,6 +107,7 @@ export const netopiaAPI = {
       postalCode: string
     }
     returnUrl: string
+    discountCode?: string
   }) => apiClient.post('/payments/netopia/start', payload)
 }
 
@@ -111,7 +117,16 @@ export const stripeAPI = {
     items: Array<{ productId: number; quantity: number }>
     successUrl?: string
     cancelUrl?: string
+    discountCode?: string
   }) => apiClient.post('/payments/stripe/start', payload)
+}
+
+export const discountAPI = {
+  getAll: () => apiClient.get('/admin/discount-codes'),
+  create: (payload: any) => apiClient.post('/admin/discount-codes', payload),
+  delete: (id: number) => apiClient.delete(`/admin/discount-codes/${id}`),
+  toggle: (id: number) => apiClient.patch(`/admin/discount-codes/${id}/toggle`),
+  validate: (code: string, total: number) => apiClient.post('/discount-codes/validate', { code, total })
 }
 
 export default apiClient

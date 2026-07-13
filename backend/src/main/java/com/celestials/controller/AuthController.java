@@ -80,4 +80,22 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        try {
+            authService.forgotPassword(body.get("usernameOrEmail"));
+        } catch (Exception ignored) {}
+        return ResponseEntity.ok(Map.of("message", "Daca adresa exista, vei primi un email cu instructiuni."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        try {
+            authService.resetPassword(body.get("token"), body.get("newPassword"));
+            return ResponseEntity.ok(Map.of("message", "Parola a fost resetata cu succes."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

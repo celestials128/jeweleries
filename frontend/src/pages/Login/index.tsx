@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Spinner } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { authAPI } from '../../services/api'
@@ -13,6 +13,13 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('tab') === 'register') {
+      setMode('register')
+    }
+  }, [])
 
   const switchMode = (m: Mode) => {
     setMode(m)
@@ -152,6 +159,14 @@ export default function Login() {
               <><Spinner animation="border" size="sm" className="me-2" />Se proceseaza...</>
             ) : mode === 'login' ? 'Autentificare' : 'Creeaza cont'}
           </button>
+
+          {mode === 'login' && (
+            <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+              <a href="/forgot-password" style={{ fontSize: '0.875rem', color: '#666', textDecoration: 'none' }}>
+                Ai uitat parola?
+              </a>
+            </div>
+          )}
         </form>
 
         <p className="auth-switch">

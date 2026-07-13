@@ -63,7 +63,8 @@ public class OrderController {
             }
             List<Map<String,Object>> items = (List<Map<String,Object>>)body.get("items");
             String paymentMethod = body.getOrDefault("paymentMethod", "CASH_ON_DELIVERY").toString();
-            Order order = orderService.createOrder(items, user, paymentMethod);
+            String discountCode = body.containsKey("discountCode") ? (String) body.get("discountCode") : null;
+            Order order = orderService.createOrder(items, user, paymentMethod, discountCode);
             return ResponseEntity.ok(order);
         } catch(IllegalArgumentException e){
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
