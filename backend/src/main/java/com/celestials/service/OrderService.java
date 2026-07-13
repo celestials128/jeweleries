@@ -159,6 +159,10 @@ public class OrderService {
         return orderRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    public List<Order> getAllOrdersWithUser(){
+        return orderRepository.findAllWithUserOrderByCreatedAtDesc();
+    }
+
     @Transactional
     public void markCanceledByPaymentReference(String paymentReference){
         if(paymentReference == null || paymentReference.isBlank()) return;

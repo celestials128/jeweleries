@@ -135,6 +135,15 @@
   padding: 16px 24px;
   border-top: 1px solid rgba(30, 58, 138, 0.08);
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.oh-discount {
+  font-size: 13px;
+  color: #16a34a;
 }
 
 .oh-total {

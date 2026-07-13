@@ -69,7 +69,11 @@ interface Order {
   status: string
   paymentMethod?: string
   total: number
+  discountAmount?: number
+  discountCode?: string
+  userIdentity?: string
   createdAt: string
+  items?: { productName: string; quantity: number; price: number }[]
 }
 
 interface DiscountCode {
@@ -1144,9 +1148,11 @@ export default function AdminDashboard() {
                     <thead>
                       <tr>
                         <th>ID</th>
+                        <th>Client</th>
                         <th>Plata</th>
                         <th>Status</th>
                         <th>Total</th>
+                        <th>Discount</th>
                         <th>Data</th>
                       </tr>
                     </thead>
@@ -1154,6 +1160,9 @@ export default function AdminDashboard() {
                       {filteredAndSortedOrders.map(order => (
                         <tr key={order.id}>
                           <td>#{order.id}</td>
+                          <td style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                            {order.userIdentity || <span style={{ color: '#d1d5db' }}>—</span>}
+                          </td>
                           <td>
                             <Badge bg={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'warning' : 'primary'} text={order.paymentMethod === 'CASH_ON_DELIVERY' ? 'dark' : 'light'}>
                               {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Cash la livrare' : 'Card online'}
@@ -1161,6 +1170,16 @@ export default function AdminDashboard() {
                           </td>
                           <td>{order.status}</td>
                           <td>{Number(order.total).toFixed(2)} RON</td>
+                          <td>
+                            {order.discountCode ? (
+                              <div style={{ lineHeight: 1.3 }}>
+                                <Badge bg="success" style={{ fontSize: '0.75rem' }}>{order.discountCode}</Badge>
+                                <div style={{ fontSize: '0.8rem', color: '#16a34a', marginTop: 2 }}>
+                                  -{Number(order.discountAmount || 0).toFixed(2)} RON
+                                </div>
+                              </div>
+                            ) : <span style={{ color: '#d1d5db' }}>—</span>}
+                          </td>
                           <td>{new Date(order.createdAt).toLocaleString('ro-RO')}</td>
                         </tr>
                       ))}

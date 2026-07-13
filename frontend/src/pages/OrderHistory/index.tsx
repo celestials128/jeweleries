@@ -16,6 +16,8 @@ interface Order {
   total: number
   status: string
   paymentMethod?: string
+  discountCode?: string
+  discountAmount?: number
   createdAt: string
   items: OrderItem[]
 }
@@ -122,15 +124,20 @@ export default function OrderHistory() {
                     </span>
                     <span className="oh-item-qty">x{item.quantity}</span>
                     <span className="oh-item-price">
-                      ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
+                      {(Number(item.price) * Number(item.quantity)).toFixed(2)} RON
                     </span>
                   </div>
                 ))}
               </div>
 
               <div className="oh-card-footer">
-                <span className="oh-total">Total: ${Number(order.total).toFixed(2)}</span>
-              </div>
+                  {order.discountCode && Number(order.discountAmount) > 0 && (
+                    <span className="oh-discount">
+                      Discount <strong>{order.discountCode}</strong>: -{Number(order.discountAmount).toFixed(2)} RON
+                    </span>
+                  )}
+                  <span className="oh-total">Total: {Number(order.total).toFixed(2)} RON</span>
+                </div>
             </div>
           )
         })}
