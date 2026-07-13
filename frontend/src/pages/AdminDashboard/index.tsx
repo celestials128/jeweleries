@@ -48,6 +48,7 @@ interface FormImage {
 interface AdminUser {
   id: number
   username: string
+  email?: string
   role: string
   orderCount: number
   totalSpent: number
@@ -153,6 +154,8 @@ export default function AdminDashboard() {
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
   const [discountCodesLoading, setDiscountCodesLoading] = useState(false)
   const [discountForm, setDiscountForm] = useState({ code: '', type: 'PERCENTAGE', value: '', assignedUsername: '', maxUses: '', expiresAt: '' })
+  const [userSearch, setUserSearch] = useState('')
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
@@ -616,7 +619,7 @@ export default function AdminDashboard() {
             <button className={`admin-tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Produse & Categorii</button>
             <button className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Comenzi</button>
             <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); if (users.length === 0) fetchUsers() }}>Utilizatori</button>
-            <button className={`admin-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => { setActiveTab('discounts'); if (discountCodes.length === 0) fetchDiscountCodes() }}>Discounturi</button>
+            <button className={`admin-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => { setActiveTab('discounts'); if (discountCodes.length === 0) fetchDiscountCodes(); if (users.length === 0) fetchUsers() }}>Discounturi</button>
             <button className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Setari</button>
           </div>
         </Col>
@@ -653,6 +656,7 @@ export default function AdminDashboard() {
                     <thead>
                       <tr>
                         <th>Utilizator</th>
+                        <th>Email</th>
                         <th>Comenzi</th>
                         <th>Total cheltuit</th>
                         <th>Ultima comanda</th>
@@ -664,6 +668,7 @@ export default function AdminDashboard() {
                         <React.Fragment key={user.id}>
                           <tr>
                             <td><strong>{user.username}</strong></td>
+                            <td>{user.email ? <a href={`mailto:${user.email}`}>{user.email}</a> : <span className="text-muted">—</span>}</td>
                             <td>
                               <Badge bg={user.orderCount > 0 ? 'primary' : 'secondary'}>
                                 {user.orderCount} {user.orderCount === 1 ? 'comanda' : 'comenzi'}
@@ -1011,7 +1016,7 @@ export default function AdminDashboard() {
                         <tr>
                           <th>Name</th>
                           <th>Category</th>
-                          <th>Price</th>
+                          <th style={{ minWidth: '110px', width: '110px' }}>Price</th>
                           <th>Flags</th>
                           <th>Stock</th>
                           <th>Actions</th>
@@ -1028,11 +1033,13 @@ export default function AdminDashboard() {
                             </td>
                             <td>{product.type?.name || '-'}</td>
                             <td>
-                              <div>
-                                <span className="discount-price-badge">${Number(product.discountedPrice || product.price).toFixed(2)}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                                 {Number(product.discountPercent || 0) > 0 && (
-                                  <div className="small discount-details">${Number(product.price).toFixed(2)} (-{Number(product.discountPercent).toFixed(0)}%)</div>
+                                  <div style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'line-through', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                                    {Number(product.price).toFixed(2)} RON
+                                  </div>
                                 )}
+                                <span className="discount-price-badge" style={{ whiteSpace: 'nowrap' }}>{Number(product.discountedPrice || product.price).toFixed(2)} RON</span>
                               </div>
                             </td>
                             <td>
@@ -1200,13 +1207,54 @@ export default function AdminDashboard() {
                       </Form.Group>
                     </Col>
                     <Col sm={6} md={3}>
-                      <Form.Group>
+                      <Form.Group style={{ position: 'relative' }}>
                         <Form.Label>Utilizator (optional)</Form.Label>
                         <Form.Control
-                          value={discountForm.assignedUsername}
-                          onChange={e => setDiscountForm(f => ({ ...f, assignedUsername: e.target.value }))}
-                          placeholder="Lasă gol = general"
+                          value={userSearch}
+                          onChange={e => {
+                            setUserSearch(e.target.value)
+                            setDiscountForm(f => ({ ...f, assignedUsername: '' }))
+                            setUserDropdownOpen(true)
+                          }}
+                          onFocus={() => setUserDropdownOpen(true)}
+                          placeholder={discountForm.assignedUsername || 'Lasă gol = general'}
+                          autoComplete="off"
                         />
+                        {userDropdownOpen && userSearch.length > 0 && (
+                          <div style={{
+                            position: 'absolute', zIndex: 1050, background: '#fff',
+                            border: '1px solid #ece7e2', width: '100%', maxHeight: '180px',
+                            overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }}>
+                            {users
+                              .filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
+                              .slice(0, 20)
+                              .map(u => (
+                                <div
+                                  key={u.id}
+                                  style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0ece8', fontSize: '0.875rem' }}
+                                  onMouseDown={() => {
+                                    setDiscountForm(f => ({ ...f, assignedUsername: u.username }))
+                                    setUserSearch(u.email || u.username)
+                                    setUserDropdownOpen(false)
+                                  }}
+                                >
+                                  <strong>{u.username}</strong>
+                                  {u.email && <span style={{ color: '#6b7280', marginLeft: 6 }}>{u.email}</span>}
+                                </div>
+                              ))}
+                            {users.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '8px 12px', color: '#9ca3af', fontSize: '0.875rem' }}>Niciun utilizator gasit</div>
+                            )}
+                          </div>
+                        )}
+                        {discountForm.assignedUsername && (
+                          <div style={{ fontSize: '0.78rem', color: '#059669', marginTop: 2 }}>
+                            ✓ {discountForm.assignedUsername}
+                            <button type="button" style={{ border: 'none', background: 'none', color: '#dc2626', marginLeft: 6, cursor: 'pointer', padding: 0 }}
+                              onClick={() => { setDiscountForm(f => ({ ...f, assignedUsername: '' })); setUserSearch('') }}>✕</button>
+                          </div>
+                        )}
                       </Form.Group>
                     </Col>
                     <Col sm={6} md={2}>
@@ -1283,6 +1331,7 @@ export default function AdminDashboard() {
                           <td>
                             <Button
                               size="sm"
+                              style={{ minWidth: '70px' }}
                               variant={dc.active ? 'success' : 'secondary'}
                               onClick={() => handleToggleDiscountCode(dc.id)}
                             >

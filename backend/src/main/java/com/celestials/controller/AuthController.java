@@ -37,9 +37,10 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String,String> body){
         try {
-            String username = body.get("username");
+            String usernameOrEmail = body.get("username");
             String password = body.get("password");
-            var user = authService.findByUsername(username);
+            var user = authService.findByUsernameOrEmail(usernameOrEmail);
+            String username = user.getUsername();
             if(!authService.validatePassword(password, user.getPassword())){
                 return ResponseEntity.status(401).body(Map.of("error", INVALID_CREDENTIALS_MESSAGE));
             }

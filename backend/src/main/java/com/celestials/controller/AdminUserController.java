@@ -49,6 +49,7 @@ public class AdminUserController {
                 Map<String, Object> dto = new LinkedHashMap<>();
                 dto.put("id", user.getId());
                 dto.put("username", user.getUsername());
+                dto.put("email", user.getEmail());
                 dto.put("role", user.getRole());
                 dto.put("orderCount", userOrders.size());
                 dto.put("totalSpent", totalSpent);

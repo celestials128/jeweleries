@@ -117,7 +117,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
           <Link to="/" className="navbar-logo">ASTERIA</Link>
 
           {isAdmin && (
-            <div style={{ justifySelf: 'end' }}>
+            <div style={{ justifySelf: 'end' }} className="header-account-admin">
             <div className="account-menu-wrap" ref={accountMenuRef}>
               <button
                 type="button"

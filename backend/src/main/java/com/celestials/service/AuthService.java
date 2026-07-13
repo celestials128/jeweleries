@@ -51,6 +51,13 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 
+    public User findByUsernameOrEmail(String usernameOrEmail) {
+        if (usernameOrEmail == null) throw new IllegalArgumentException("User not found");
+        return userRepository.findByUsername(usernameOrEmail.trim())
+                .or(() -> userRepository.findByEmail(usernameOrEmail.trim()))
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
     public boolean validatePassword(String rawPassword, String encodedPassword) {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }

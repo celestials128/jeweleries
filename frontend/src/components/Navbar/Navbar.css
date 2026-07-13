@@ -323,6 +323,18 @@
     color: #1a2332;
   }
 
+  .header-account-admin {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+
+  .header-account-admin .account-icon {
+    display: none;
+  }
+
   .account-dropdown-menu {
     left: 0;
     right: auto;
