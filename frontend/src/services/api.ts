@@ -129,4 +129,10 @@ export const discountAPI = {
   validate: (code: string, total: number) => apiClient.post('/discount-codes/validate', { code, total })
 }
 
+export const settingsAPI = {
+  getPublic: () => apiClient.get('/settings'),
+  getAdmin: () => apiClient.get('/admin/settings'),
+  setShippingFee: (shippingFee: number) => apiClient.post('/admin/settings/shipping-fee', { shippingFee })
+}
+
 export default apiClient

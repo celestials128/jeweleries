@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI, discountAPI } from '../../services/api'
+import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI, discountAPI, settingsAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
 import './AdminDashboard.css'
 
@@ -149,6 +149,9 @@ export default function AdminDashboard() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const [shippingFee, setShippingFee] = useState<number>(20)
+  const [shippingFeeInput, setShippingFeeInput] = useState<string>('20')
+  const [shippingFeeLoading, setShippingFeeLoading] = useState(false)
 
   // Discount codes state
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
@@ -620,7 +623,14 @@ export default function AdminDashboard() {
             <button className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Comenzi</button>
             <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); if (users.length === 0) fetchUsers() }}>Utilizatori</button>
             <button className={`admin-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => { setActiveTab('discounts'); if (discountCodes.length === 0) fetchDiscountCodes(); if (users.length === 0) fetchUsers() }}>Discounturi</button>
-            <button className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Setari</button>
+            <button className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => {
+              setActiveTab('settings')
+              settingsAPI.getAdmin().then(res => {
+                const fee = Number(res.data.shippingFee) || 20
+                setShippingFee(fee)
+                setShippingFeeInput(String(fee))
+              }).catch(() => {})
+            }}>Setari</button>
           </div>
         </Col>
       </Row>
@@ -1354,6 +1364,44 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'settings' && (
+          <>
+          <Col md={6} lg={4}>
+            <Card className="admin-card shadow-sm border-0 mb-4">
+              <Card.Header className="admin-card-header">
+                <Card.Title className="mb-0">Taxa livrare</Card.Title>
+              </Card.Header>
+              <Card.Body>
+                <Form onSubmit={async (e) => {
+                  e.preventDefault()
+                  const fee = Number(shippingFeeInput)
+                  if (isNaN(fee) || fee < 0) { toast.error('Valoare invalida'); return }
+                  setShippingFeeLoading(true)
+                  try {
+                    await settingsAPI.setShippingFee(fee)
+                    setShippingFee(fee)
+                    toast.success('Taxa de livrare actualizata')
+                  } catch { toast.error('Eroare la salvare') }
+                  finally { setShippingFeeLoading(false) }
+                }}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Taxa livrare (LEI)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={shippingFeeInput}
+                      onChange={e => setShippingFeeInput(e.target.value)}
+                      required
+                    />
+                    <Form.Text className="text-muted">Livrare gratuita pentru comenzi peste 200 LEI.</Form.Text>
+                  </Form.Group>
+                  <Button type="submit" className="admin-btn-submit w-100" disabled={shippingFeeLoading}>
+                    {shippingFeeLoading ? <><Spinner size="sm" className="me-2" />Se salveaza...</> : 'Salveaza taxa'}
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
           <Col md={6} lg={4}>
             <Card className="admin-card shadow-sm border-0">
               <Card.Header className="admin-card-header">
@@ -1397,6 +1445,7 @@ export default function AdminDashboard() {
               </Card.Body>
             </Card>
           </Col>
+          </>
         )}
       </Row>
     </Container>

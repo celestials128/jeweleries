@@ -21,13 +21,16 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final EmailService emailService;
     private final DiscountCodeService discountCodeService;
+    private final SettingService settingService;
 
     public OrderService(OrderRepository orderRepository, ProductRepository productRepository,
-                        EmailService emailService, DiscountCodeService discountCodeService) {
+                        EmailService emailService, DiscountCodeService discountCodeService,
+                        SettingService settingService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.emailService = emailService;
         this.discountCodeService = discountCodeService;
+        this.settingService = settingService;
     }
 
     public List<Order> getUserOrders(User user){
@@ -169,13 +172,16 @@ public class OrderService {
     private void applyDiscount(Order order, String discountCode, User user) {
         if (!StringUtils.hasText(discountCode)) {
             order.setDiscountAmount(BigDecimal.ZERO);
-            return;
+        } else {
+            String username = user != null ? user.getUsername() : null;
+            BigDecimal discountAmount = discountCodeService.applyCode(discountCode, order.getTotal(), username);
+            order.setDiscountCode(discountCode.toUpperCase());
+            order.setDiscountAmount(discountAmount);
+            order.setTotal(order.getTotal().subtract(discountAmount).max(BigDecimal.ZERO));
         }
-        String username = user != null ? user.getUsername() : null;
-        BigDecimal discountAmount = discountCodeService.applyCode(discountCode, order.getTotal(), username);
-        order.setDiscountCode(discountCode.toUpperCase());
-        order.setDiscountAmount(discountAmount);
-        order.setTotal(order.getTotal().subtract(discountAmount).max(BigDecimal.ZERO));
+        // Add shipping fee (free if total >= 200)
+        BigDecimal shipping = settingService.computeShipping(order.getTotal());
+        order.setTotal(order.getTotal().add(shipping));
     }
 
     private void sendOrderConfirmationEmail(Order order, User user) {

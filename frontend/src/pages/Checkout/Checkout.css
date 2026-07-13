@@ -73,12 +73,12 @@
 
 .co-item-name {
   font-weight: 500;
-  color: #475569;
+  color: #111111;
 }
 
 .co-item-meta {
   font-weight: 600;
-  color: #1a2332;
+  color: #111111;
   white-space: nowrap;
 }
 
@@ -91,7 +91,7 @@
   margin-top: 8px;
   font-size: 20px;
   font-weight: 800;
-  color: #1e3a8a;
+  color: #111111;
 }
 
 .co-secure-badge,

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Container, Row, Col, Form, Button, Spinner } from 'react-bootstrap'
 import { toast } from 'react-toastify'
-import { authAPI, netopiaAPI, stripeAPI, orderAPI, discountAPI } from '../../services/api'
+import { authAPI, netopiaAPI, stripeAPI, orderAPI, settingsAPI } from '../../services/api'
 import './Checkout.css'
 
 interface CartItem {
@@ -34,11 +34,11 @@ const EMPTY_BILLING: BillingInfo = {
   postalCode: ''
 }
 
-function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }: {
+function CheckoutForm({ cartItems, grandTotal, discountApplied, shippingFee }: {
   cartItems: CartItem[];
-  total: number;
+  grandTotal: number;
   discountApplied: { code: string; discountAmount: number } | null;
-  setDiscountApplied: (v: { code: string; discountAmount: number } | null) => void;
+  shippingFee: number;
 }) {
   const navigate = useNavigate()
   const [billing, setBilling] = useState<BillingInfo>(EMPTY_BILLING)
@@ -49,9 +49,6 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
   const [password, setPassword] = useState('')
   const [netopiaConfigured, setNetopiaConfigured] = useState(false)
   const [stripeConfigured, setStripeConfigured] = useState(false)
-  const [discountCode, setDiscountCode] = useState('')
-  const [discountLoading, setDiscountLoading] = useState(false)
-  const [discountError, setDiscountError] = useState('')
 
   useEffect(() => {
     Promise.allSettled([
@@ -75,29 +72,6 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
   const handleBillingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
     setBilling(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleApplyDiscount = async () => {
-    setDiscountError('')
-    if (!discountCode.trim()) return
-    setDiscountLoading(true)
-    try {
-      const effectiveTotal = total
-      const res = await discountAPI.validate(discountCode.trim(), effectiveTotal)
-      setDiscountApplied({ code: res.data.code, discountAmount: Number(res.data.discountAmount) })
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'Cod invalid.'
-      setDiscountError(message)
-      setDiscountApplied(null)
-    } finally {
-      setDiscountLoading(false)
-    }
-  }
-
-  const handleRemoveDiscount = () => {
-    setDiscountApplied(null)
-    setDiscountCode('')
-    setDiscountError('')
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -140,6 +114,7 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
           discountApplied?.code
         )
         localStorage.removeItem('cart')
+        localStorage.removeItem('discount')
         window.dispatchEvent(new Event('cart:updated'))
         toast.success('Comanda a fost plasata. Plata se face la livrare.')
         navigate('/orders')
@@ -154,6 +129,7 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
           discountCode: discountApplied?.code
         })
         localStorage.removeItem('cart')
+        localStorage.removeItem('discount')
         window.dispatchEvent(new Event('cart:updated'))
         toast.info('Redirectam catre plata securizata Stripe...')
         window.location.href = response.data.checkoutUrl
@@ -314,41 +290,6 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
       </div>
 
       <div className="co-section">
-        <h5 className="co-section-title">Cod de discount</h5>
-        {discountApplied ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <span style={{ background: '#d4edda', color: '#155724', padding: '0.35rem 0.75rem', borderRadius: 20, fontWeight: 600, fontSize: '0.95rem' }}>
-              ✓ {discountApplied.code} &mdash; -{discountApplied.discountAmount.toFixed(2)} RON
-            </span>
-            <button type="button" onClick={handleRemoveDiscount} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}>
-              Elimina
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={discountCode}
-              onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountError('') }}
-              placeholder="Cod discount"
-              style={{ flex: 1, minWidth: 140, padding: '0.5rem 0.75rem', border: '1px solid #ccc', borderRadius: 4, fontSize: '0.95rem' }}
-            />
-            <button
-              type="button"
-              onClick={handleApplyDiscount}
-              disabled={discountLoading || !discountCode.trim()}
-              style={{ padding: '0.5rem 1.25rem', background: '#1a2332', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.95rem', whiteSpace: 'nowrap' }}
-            >
-              {discountLoading ? 'Se verifica...' : 'Aplica'}
-            </button>
-          </div>
-        )}
-        {discountError && (
-          <div style={{ color: '#dc3545', fontSize: '0.875rem', marginTop: '0.4rem' }}>{discountError}</div>
-        )}
-      </div>
-
-      <div className="co-section">
         <h5 className="co-section-title">Modalitate de plata</h5>
         <div className="co-payment-options">
           <Form.Check
@@ -421,8 +362,8 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
         {loading
           ? <><Spinner animation="border" size="sm" className="me-2" />Se proceseaza...</>
           : paymentMethod === 'CASH_ON_DELIVERY'
-            ? `Plaseaza comanda ${(total - (discountApplied?.discountAmount ?? 0)).toFixed(2)} RON`
-            : `Continua la plata ${(total - (discountApplied?.discountAmount ?? 0)).toFixed(2)} RON`
+            ? `Plaseaza comanda ${grandTotal.toFixed(2)} RON`
+            : `Continua la plata ${grandTotal.toFixed(2)} RON`
         }
       </Button>
     </Form>
@@ -431,8 +372,9 @@ function CheckoutForm({ cartItems, total, discountApplied, setDiscountApplied }:
 
 export default function Checkout() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [total, setTotal] = useState(0)
+  const [subtotal, setSubtotal] = useState(0)
   const [discountApplied, setDiscountApplied] = useState<{ code: string; discountAmount: number } | null>(null)
+  const [shippingFee, setShippingFee] = useState(20)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -443,8 +385,22 @@ export default function Checkout() {
       quantity: Math.max(1, Number(item.quantity) || 1)
     }))
     setCartItems(normalized)
-    setTotal(normalized.reduce((sum, item) => sum + item.price * item.quantity, 0))
+    setSubtotal(normalized.reduce((sum, item) => sum + item.price * item.quantity, 0))
+
+    const savedDiscount = localStorage.getItem('discount')
+    if (savedDiscount) {
+      try { setDiscountApplied(JSON.parse(savedDiscount)) } catch {}
+    }
+
+    settingsAPI.getPublic()
+      .then(res => setShippingFee(Number(res.data.shippingFee) || 20))
+      .catch(() => {})
   }, [])
+
+  const discountAmount = discountApplied?.discountAmount ?? 0
+  const totalAfterDiscount = Math.max(0, subtotal - discountAmount)
+  const shipping = totalAfterDiscount >= 200 ? 0 : shippingFee
+  const grandTotal = totalAfterDiscount + shipping
 
   const itemCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems])
 
@@ -478,16 +434,25 @@ export default function Checkout() {
               ))}
             </div>
             <div className="co-total">
-              <span>Total</span>
-              <div style={{ textAlign: 'right' }}>
-                {discountApplied && (
-                  <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '0.875rem' }}>
-                    {total.toFixed(2)} RON
-                  </div>
-                )}
-                <span>{(total - (discountApplied?.discountAmount ?? 0)).toFixed(2)} RON</span>
+                <span>Subtotal</span>
+                <span>{subtotal.toFixed(2)} RON</span>
               </div>
-            </div>
+              {discountApplied && (
+                <div className="co-total" style={{ color: '#16a34a' }}>
+                  <span>Discount ({discountApplied.code})</span>
+                  <span>-{discountAmount.toFixed(2)} RON</span>
+                </div>
+              )}
+              <div className="co-total">
+                <span>Transport</span>
+                <span style={shipping === 0 ? { color: '#16a34a' } : {}}>
+                  {shipping === 0 ? 'Gratuit' : `${shipping.toFixed(2)} RON`}
+                </span>
+              </div>
+              <div className="co-total" style={{ fontWeight: 700, borderTop: '1px solid #eee', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                <span>Total</span>
+                <span>{grandTotal.toFixed(2)} RON</span>
+              </div>
             <div className="co-secure-badge">
               Plata securizata prin Stripe / NETOPIA
             </div>
@@ -496,7 +461,7 @@ export default function Checkout() {
 
         <Col lg={8}>
           <div className="co-form-card">
-            <CheckoutForm cartItems={cartItems} total={total} discountApplied={discountApplied} setDiscountApplied={setDiscountApplied} />
+            <CheckoutForm cartItems={cartItems} grandTotal={grandTotal} discountApplied={discountApplied} shippingFee={shippingFee} />
           </div>
         </Col>
       </Row>
