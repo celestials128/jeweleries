@@ -97,4 +97,26 @@ public class AdminUserController {
 
         return ResponseEntity.ok(result);
     }
+
+    @DeleteMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if ("ROLE_ADMIN".equals(user.getRole())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Administratorul nu poate fi sters"));
+        }
+
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        for (Order order : orders) {
+            order.setUser(null);
+        }
+        orderRepository.saveAll(orders);
+        userRepository.delete(user);
+
+        return ResponseEntity.ok(Map.of("message", "deleted"));
+    }
 }

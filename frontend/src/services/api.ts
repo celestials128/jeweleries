@@ -92,7 +92,8 @@ export const orderAPI = {
 
 export const adminUserAPI = {
   getAll: () => apiClient.get('/admin/users'),
-  getOrders: (userId: number) => apiClient.get(`/admin/users/${userId}/orders`)
+  getOrders: (userId: number) => apiClient.get(`/admin/users/${userId}/orders`),
+  delete: (userId: number) => apiClient.delete(`/admin/users/${userId}`)
 }
 
 export const netopiaAPI = {

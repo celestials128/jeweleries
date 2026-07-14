@@ -422,6 +422,12 @@
   border-radius: 8px;
   overflow: hidden;
 }
+.user-order-row-clickable {
+  cursor: pointer;
+}
+.user-order-row-clickable:hover {
+  background: #eef4ff;
+}
 .user-orders-table thead th {
   background: #f1f5f9;
   font-size: 12px;

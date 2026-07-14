@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
+import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination, Modal } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI, discountAPI, settingsAPI } from '../../services/api'
 import { resolveMediaUrl } from '../../utils/media'
@@ -166,9 +166,10 @@ export default function AdminDashboard() {
   // Users tab state
   const [users, setUsers] = useState<AdminUser[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
-  const [expandedUserId, setExpandedUserId] = useState<number | null>(null)
   const [userOrders, setUserOrders] = useState<Record<number, UserOrder[]>>({})
   const [userOrdersLoading, setUserOrdersLoading] = useState<Record<number, boolean>>({})
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [showUserOrdersModal, setShowUserOrdersModal] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [orderStatusFilter, setOrderStatusFilter] = useState('all')
@@ -358,13 +359,10 @@ export default function AdminDashboard() {
     }
   }
 
-  const toggleUserOrders = async (userId: number) => {
-    if (expandedUserId === userId) {
-      setExpandedUserId(null)
-      return
-    }
-    setExpandedUserId(userId)
-    if (userOrders[userId]) return // already loaded
+  const openUserOrdersModal = async (userId: number) => {
+    setSelectedUserId(userId)
+    setShowUserOrdersModal(true)
+    if (userOrders[userId]) return
     setUserOrdersLoading(prev => ({ ...prev, [userId]: true }))
     try {
       const res = await adminUserAPI.getOrders(userId)
@@ -373,6 +371,26 @@ export default function AdminDashboard() {
       toast.error('Nu s-au putut incarca comenzile utilizatorului.')
     } finally {
       setUserOrdersLoading(prev => ({ ...prev, [userId]: false }))
+    }
+  }
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm('Stergi acest utilizator? Comenzile vor ramane in istoric fara contul asociat.')) return
+    try {
+      await adminUserAPI.delete(userId)
+      setUsers(prev => prev.filter(user => user.id !== userId))
+      setUserOrders(prev => {
+        const next = { ...prev }
+        delete next[userId]
+        return next
+      })
+      if (selectedUserId === userId) {
+        setShowUserOrdersModal(false)
+        setSelectedUserId(null)
+      }
+      toast.success('Utilizator sters.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Eroare la stergere utilizator.')
     }
   }
 
@@ -712,6 +730,13 @@ export default function AdminDashboard() {
     [users, orderUserFilter]
   )
 
+  const selectedUser = useMemo(
+    () => users.find(user => user.id === selectedUserId) || null,
+    [users, selectedUserId]
+  )
+
+  const selectedUserOrders = selectedUserId ? (userOrders[selectedUserId] || []) : []
+
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages)
@@ -947,76 +972,24 @@ export default function AdminDashboard() {
                                 : <span className="text-muted">—</span>}
                             </td>
                             <td>
-                              {user.orderCount > 0 && (
+                              <div className="d-flex gap-2">
                                 <Button
                                   size="sm"
-                                  variant={expandedUserId === user.id ? 'primary' : 'outline-primary'}
-                                  onClick={() => toggleUserOrders(user.id)}
+                                  variant="outline-primary"
+                                  onClick={() => openUserOrdersModal(user.id)}
                                 >
-                                  {expandedUserId === user.id ? '▲ Ascunde' : '▼ Comenzi'}
+                                  Detalii
                                 </Button>
-                              )}
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                >
+                                  Sterge
+                                </Button>
+                              </div>
                             </td>
                           </tr>
-                          {expandedUserId === user.id && (
-                            <tr>
-                              <td colSpan={5} className="p-0">
-                                <div className="user-orders-panel">
-                                  {userOrdersLoading[user.id] ? (
-                                    <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
-                                  ) : (userOrders[user.id] || []).length === 0 ? (
-                                    <p className="text-muted p-3 mb-0">Nicio comanda gasita.</p>
-                                  ) : (
-                                    <Table size="sm" className="mb-0 user-orders-table">
-                                      <thead>
-                                        <tr>
-                                          <th>#</th>
-                                          <th>Data</th>
-                                          <th>Status</th>
-                                          <th>Plata</th>
-                                          <th>Total</th>
-                                          <th>Produse</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(userOrders[user.id] || []).map(order => (
-                                          <tr key={order.id}>
-                                            <td>#{order.id}</td>
-                                            <td>{new Date(order.createdAt).toLocaleDateString('ro-RO')}</td>
-                                            <td>
-                                              <Badge bg={
-                                                order.status === 'PAID' ? 'success' :
-                                                order.status === 'SHIPPED' ? 'info' :
-                                                order.status === 'CANCELLED' ? 'danger' :
-                                                order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'warning' : 'secondary'
-                                              } text={order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'dark' : undefined}>
-                                                {order.status}
-                                              </Badge>
-                                            </td>
-                                            <td>
-                                              <span className="text-muted small">
-                                                {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Numerar' : 'Card'}
-                                              </span>
-                                            </td>
-                                            <td><strong>{Number(order.total).toFixed(2)} RON</strong></td>
-                                            <td>
-                                              <div className="order-items-list">
-                                                {order.items.map(item => (
-                                                  <span key={item.id} className="order-item-chip">
-                                                    {item.productName} ×{item.quantity}
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </Table>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
                         </React.Fragment>
                       ))}
                     </tbody>
@@ -1026,6 +999,81 @@ export default function AdminDashboard() {
             </Card>
           </Col>
         )}
+
+        <Modal show={showUserOrdersModal} onHide={() => { setShowUserOrdersModal(false); setSelectedUserId(null) }} size="lg" centered>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              {selectedUser ? `Comenzile lui ${selectedUser.username}` : 'Comenzi utilizator'}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {!selectedUser ? (
+              <p className="text-muted mb-0">Selecteaza un utilizator.</p>
+            ) : userOrdersLoading[selectedUser.id] ? (
+              <div className="text-center py-4"><Spinner animation="border" /></div>
+            ) : selectedUserOrders.length === 0 ? (
+              <p className="text-muted mb-0">Nicio comanda gasita.</p>
+            ) : (
+              <Table responsive hover className="mb-0 user-orders-modal-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Plata</th>
+                    <th>Total</th>
+                    <th>Produse</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedUserOrders.map(order => (
+                    <tr
+                      key={order.id}
+                      className="user-order-row-clickable"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/admin/orders/${order.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/admin/orders/${order.id}`)
+                        }
+                      }}
+                    >
+                      <td>#{order.id}</td>
+                      <td>{new Date(order.createdAt).toLocaleDateString('ro-RO')}</td>
+                      <td>
+                        <Badge bg={
+                          order.status === 'PAID' ? 'success' :
+                          order.status === 'SHIPPED' ? 'info' :
+                          order.status === 'CANCELLED' ? 'danger' :
+                          order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'warning' : 'secondary'
+                        } text={order.status === 'AWAITING_CASH_ON_DELIVERY' ? 'dark' : undefined}>
+                          {order.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        <span className="text-muted small">
+                          {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Numerar' : 'Card'}
+                        </span>
+                      </td>
+                      <td><strong>{Number(order.total).toFixed(2)} RON</strong></td>
+                      <td>
+                        <div className="order-items-list">
+                          {order.items.map(item => (
+                            <span key={item.id} className="order-item-chip">
+                              {item.productName} ×{item.quantity}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Modal.Body>
+        </Modal>
 
         {activeTab === 'products' && (
           <>
