@@ -1,7 +1,9 @@
 package com.celestials.service;
 
 import com.celestials.model.DiscountCode;
+import com.celestials.model.User;
 import com.celestials.repository.DiscountCodeRepository;
+import com.celestials.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -16,9 +18,11 @@ import java.util.Map;
 public class DiscountCodeService {
 
     private final DiscountCodeRepository discountCodeRepository;
+    private final UserRepository userRepository;
 
-    public DiscountCodeService(DiscountCodeRepository discountCodeRepository) {
+    public DiscountCodeService(DiscountCodeRepository discountCodeRepository, UserRepository userRepository) {
         this.discountCodeRepository = discountCodeRepository;
+        this.userRepository = userRepository;
     }
 
     public List<DiscountCode> getAll() {
@@ -48,8 +52,9 @@ public class DiscountCodeService {
         dc.setCode(code);
         dc.setType(type);
         dc.setValue(value);
-        dc.setAssignedUsername(body.containsKey("assignedUsername") && body.get("assignedUsername") != null
-            ? ((String) body.get("assignedUsername")).trim() : null);
+        String assignedUsername = body.containsKey("assignedUsername") && body.get("assignedUsername") != null
+                ? ((String) body.get("assignedUsername")).trim() : null;
+        dc.setAssignedUsername(StringUtils.hasText(assignedUsername) ? assignedUsername : null);
         if (body.containsKey("maxUses") && body.get("maxUses") != null) {
             dc.setMaxUses(Integer.parseInt(body.get("maxUses").toString()));
         }
@@ -88,7 +93,7 @@ public class DiscountCodeService {
         if (dc.getMaxUses() != null && dc.getUsedCount() >= dc.getMaxUses()) {
             throw new IllegalArgumentException("Codul a atins numarul maxim de utilizari");
         }
-        if (StringUtils.hasText(dc.getAssignedUsername()) && !dc.getAssignedUsername().equalsIgnoreCase(username)) {
+        if (!isDiscountAllowedForUser(dc, username)) {
             throw new IllegalArgumentException("Codul nu este valabil pentru acest cont");
         }
 
@@ -118,7 +123,7 @@ public class DiscountCodeService {
         if (dc == null || !dc.isActive()) return BigDecimal.ZERO;
         if (dc.getExpiresAt() != null && dc.getExpiresAt().isBefore(OffsetDateTime.now())) return BigDecimal.ZERO;
         if (dc.getMaxUses() != null && dc.getUsedCount() >= dc.getMaxUses()) return BigDecimal.ZERO;
-        if (StringUtils.hasText(dc.getAssignedUsername()) && !dc.getAssignedUsername().equalsIgnoreCase(username)) return BigDecimal.ZERO;
+        if (!isDiscountAllowedForUser(dc, username)) return BigDecimal.ZERO;
 
         dc.setUsedCount(dc.getUsedCount() + 1);
         discountCodeRepository.save(dc);
@@ -128,5 +133,22 @@ public class DiscountCodeService {
         } else {
             return dc.getValue().min(orderTotal);
         }
+    }
+
+    private boolean isDiscountAllowedForUser(DiscountCode dc, String usernameOrEmail) {
+        String assigned = dc.getAssignedUsername();
+        if (!StringUtils.hasText(assigned)) return true;
+        if (!StringUtils.hasText(usernameOrEmail)) return false;
+
+        String normalizedIdentifier = usernameOrEmail.trim();
+        if (assigned.equalsIgnoreCase(normalizedIdentifier)) return true;
+
+        User user = userRepository.findByUsername(normalizedIdentifier)
+                .or(() -> userRepository.findByEmail(normalizedIdentifier))
+                .orElse(null);
+        if (user == null) return false;
+
+        return assigned.equalsIgnoreCase(user.getUsername())
+                || (StringUtils.hasText(user.getEmail()) && assigned.equalsIgnoreCase(user.getEmail()));
     }
 }

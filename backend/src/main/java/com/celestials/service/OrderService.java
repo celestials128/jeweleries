@@ -47,6 +47,20 @@ public class OrderService {
     }
 
     @Transactional
+    public Order claimOrderForUser(Long orderId, User user) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        if (order.getUser() == null) {
+            order.setUser(user);
+            return orderRepository.save(order);
+        }
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Unauthorized");
+        }
+        return order;
+    }
+
+    @Transactional
     public Order createOrder(List<Map<String,Object>> items, User user){
         return createOrder(items, user, "CASH_ON_DELIVERY", null);
     }

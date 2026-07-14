@@ -176,6 +176,13 @@
   white-space: nowrap;
 }
 
+.discount-toggle-btn {
+  width: 88px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Pagination Styling */
 .pagination-admin {
   gap: 4px;

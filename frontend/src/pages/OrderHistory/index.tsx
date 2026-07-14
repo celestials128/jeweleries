@@ -50,7 +50,6 @@ export default function OrderHistory() {
   useEffect(() => {
     if (paymentStatus === 'success') {
       toast.success('Plata a fost efectuata cu succes! Comanda ta a fost confirmata.', { autoClose: 6000 })
-      localStorage.removeItem('lastOrderId')
     } else if (paymentStatus === 'cancelled') {
       toast.warning('Plata a fost anulata. Comanda nu a fost plasata.')
     }
@@ -61,8 +60,20 @@ export default function OrderHistory() {
       setLoading(false)
       return
     }
-    orderAPI.getAll()
-      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
+    const lastOrderIdRaw = paymentStatus === 'success' ? localStorage.getItem('lastOrderId') : null
+    const lastOrderId = lastOrderIdRaw ? Number(lastOrderIdRaw) : NaN
+    const claimPromise = Number.isFinite(lastOrderId) && lastOrderId > 0
+      ? orderAPI.claim(lastOrderId).catch(() => null)
+      : Promise.resolve(null)
+
+    claimPromise
+      .then(() => orderAPI.getAll())
+      .then(res => {
+        setOrders(Array.isArray(res.data) ? res.data : [])
+        if (paymentStatus === 'success') {
+          localStorage.removeItem('lastOrderId')
+        }
+      })
       .catch(err => {
         if (err.response?.status === 401 || err.response?.status === 403) {
           setAuthError(true)
@@ -70,7 +81,7 @@ export default function OrderHistory() {
         setOrders([])
       })
       .finally(() => setLoading(false))
-  }, [isLoggedIn])
+  }, [isLoggedIn, paymentStatus])
 
   if (!isLoggedIn) {
     return (

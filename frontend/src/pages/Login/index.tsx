@@ -9,6 +9,7 @@ type Mode = 'login' | 'register'
 export default function Login() {
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -25,6 +26,7 @@ export default function Login() {
     setMode(m)
     setError('')
     setUsername('')
+    setEmail('')
     setPassword('')
     setConfirmPassword('')
   }
@@ -34,6 +36,11 @@ export default function Login() {
     setError('')
 
     if (mode === 'register') {
+      const normalizedEmail = email.trim()
+      if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        setError('Introdu o adresa de email valida.')
+        return
+      }
       if (password.length < 6) {
         setError('Parola trebuie sa aiba cel putin 6 caractere.')
         return
@@ -47,12 +54,12 @@ export default function Login() {
     setLoading(true)
     try {
       if (mode === 'register') {
-        await authAPI.register(username, password)
+        await authAPI.register(username.trim(), email.trim(), password)
         toast.success('Cont creat cu succes! Te autentificam...')
         // Auto-login after registration
-        const loginRes = await authAPI.login(username, password)
+        const loginRes = await authAPI.login(username.trim(), password)
         localStorage.setItem('token', loginRes.data.token)
-        localStorage.setItem('username', username)
+        localStorage.setItem('username', loginRes.data.username || username.trim())
         if (loginRes.data.role) {
           localStorage.setItem('role', loginRes.data.role)
         } else {
@@ -62,7 +69,7 @@ export default function Login() {
       } else {
         const res = await authAPI.login(username, password)
         localStorage.setItem('token', res.data.token)
-        localStorage.setItem('username', username)
+        localStorage.setItem('username', res.data.username || username)
         let isAdmin = false
         if (res.data.role) {
           localStorage.setItem('role', res.data.role)
@@ -112,11 +119,11 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="auth-field">
-            <label htmlFor="auth-username">Nume utilizator</label>
+            <label htmlFor="auth-username">{mode === 'login' ? 'Nume utilizator sau email' : 'Nume utilizator'}</label>
             <input
               id="auth-username"
               type="text"
-              placeholder="ex: maria_ioana"
+              placeholder={mode === 'login' ? 'ex: maria_ioana sau email@site.ro' : 'ex: maria_ioana'}
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
@@ -124,6 +131,21 @@ export default function Login() {
               autoFocus
             />
           </div>
+
+          {mode === 'register' && (
+            <div className="auth-field">
+              <label htmlFor="auth-email">Email</label>
+              <input
+                id="auth-email"
+                type="email"
+                placeholder="ex: maria@email.ro"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+          )}
 
           <div className="auth-field">
             <label htmlFor="auth-password">Parola</label>

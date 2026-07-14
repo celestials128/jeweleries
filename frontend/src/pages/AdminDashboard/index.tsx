@@ -162,7 +162,6 @@ export default function AdminDashboard() {
   const [discountCodesLoading, setDiscountCodesLoading] = useState(false)
   const [discountForm, setDiscountForm] = useState({ code: '', type: 'PERCENTAGE', value: '', assignedUsername: '', maxUses: '', expiresAt: '' })
   const [userSearch, setUserSearch] = useState('')
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [images, setImages] = useState<FormImage[]>([])
@@ -245,11 +244,25 @@ export default function AdminDashboard() {
       await discountAPI.create(payload)
       toast.success('Cod creat!')
       setDiscountForm({ code: '', type: 'PERCENTAGE', value: '', assignedUsername: '', maxUses: '', expiresAt: '' })
+      setUserSearch('')
       fetchDiscountCodes()
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Eroare la creare cod.')
     }
   }
+
+  const filteredUsers = useMemo(() => {
+    const term = userSearch.trim().toLowerCase()
+    if (!term) return users
+    return users.filter(u =>
+      u.username.toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term)
+    )
+  }, [users, userSearch])
+
+  const selectedAssignedUser = useMemo(
+    () => users.find(u => u.username === discountForm.assignedUsername),
+    [users, discountForm.assignedUsername]
+  )
 
   const handleDeleteDiscountCode = async (id: number) => {
     if (!window.confirm('Sterge codul de discount?')) return
@@ -1236,54 +1249,34 @@ export default function AdminDashboard() {
                       </Form.Group>
                     </Col>
                     <Col sm={6} md={3}>
-                      <Form.Group style={{ position: 'relative' }}>
+                      <Form.Group>
                         <Form.Label>Utilizator (optional)</Form.Label>
                         <Form.Control
+                          className="mb-2"
                           value={userSearch}
-                          onChange={e => {
-                            setUserSearch(e.target.value)
-                            setDiscountForm(f => ({ ...f, assignedUsername: '' }))
-                            setUserDropdownOpen(true)
-                          }}
-                          onFocus={() => setUserDropdownOpen(true)}
-                          placeholder={discountForm.assignedUsername || 'Lasă gol = general'}
+                          onChange={e => setUserSearch(e.target.value)}
+                          placeholder="Filtreaza dupa username sau email"
                           autoComplete="off"
                         />
-                        {userDropdownOpen && userSearch.length > 0 && (
-                          <div style={{
-                            position: 'absolute', zIndex: 1050, background: '#fff',
-                            border: '1px solid #ece7e2', width: '100%', maxHeight: '180px',
-                            overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                          }}>
-                            {users
-                              .filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
-                              .slice(0, 20)
-                              .map(u => (
-                                <div
-                                  key={u.id}
-                                  style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0ece8', fontSize: '0.875rem' }}
-                                  onMouseDown={() => {
-                                    setDiscountForm(f => ({ ...f, assignedUsername: u.username }))
-                                    setUserSearch(u.email || u.username)
-                                    setUserDropdownOpen(false)
-                                  }}
-                                >
-                                  <strong>{u.username}</strong>
-                                  {u.email && <span style={{ color: '#6b7280', marginLeft: 6 }}>{u.email}</span>}
-                                </div>
-                              ))}
-                            {users.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
-                              <div style={{ padding: '8px 12px', color: '#9ca3af', fontSize: '0.875rem' }}>Niciun utilizator gasit</div>
-                            )}
-                          </div>
-                        )}
-                        {discountForm.assignedUsername && (
-                          <div style={{ fontSize: '0.78rem', color: '#059669', marginTop: 2 }}>
-                            ✓ {discountForm.assignedUsername}
-                            <button type="button" style={{ border: 'none', background: 'none', color: '#dc2626', marginLeft: 6, cursor: 'pointer', padding: 0 }}
-                              onClick={() => { setDiscountForm(f => ({ ...f, assignedUsername: '' })); setUserSearch('') }}>✕</button>
-                          </div>
-                        )}
+                        <Form.Select
+                          value={discountForm.assignedUsername}
+                          onChange={e => setDiscountForm(f => ({ ...f, assignedUsername: e.target.value }))}
+                        >
+                          <option value="">General (oricine)</option>
+                          {selectedAssignedUser && !filteredUsers.some(u => u.id === selectedAssignedUser.id) && (
+                            <option value={selectedAssignedUser.username}>
+                              {selectedAssignedUser.username}{selectedAssignedUser.email ? ` (${selectedAssignedUser.email})` : ''}
+                            </option>
+                          )}
+                          {filteredUsers.map(u => (
+                            <option key={u.id} value={u.username}>
+                              {u.username}{u.email ? ` (${u.email})` : ''}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        <Form.Text className="text-muted">
+                          {filteredUsers.length} utilizator{filteredUsers.length === 1 ? '' : 'i'} afisati
+                        </Form.Text>
                       </Form.Group>
                     </Col>
                     <Col sm={6} md={2}>
@@ -1360,7 +1353,7 @@ export default function AdminDashboard() {
                           <td>
                             <Button
                               size="sm"
-                              style={{ minWidth: '70px' }}
+                              className="discount-toggle-btn"
                               variant={dc.active ? 'success' : 'secondary'}
                               onClick={() => handleToggleDiscountCode(dc.id)}
                             >

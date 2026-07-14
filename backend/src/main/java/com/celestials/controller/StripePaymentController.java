@@ -54,7 +54,8 @@ public class StripePaymentController {
             return null;
         }
         String username = authentication.getName();
-        Optional<User> user = userRepository.findByUsername(username);
+        Optional<User> user = userRepository.findByUsername(username)
+                .or(() -> userRepository.findByEmail(username));
         return user.orElse(null);
     }
 }

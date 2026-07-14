@@ -22,7 +22,7 @@ apiClient.interceptors.request.use(config => {
 })
 
 export const authAPI = {
-  register: (username: string, password: string) => apiClient.post('/auth/register', { username, password }),
+  register: (username: string, email: string, password: string) => apiClient.post('/auth/register', { username, email, password }),
   login: (username: string, password: string) => apiClient.post('/auth/login', { username, password }),
   me: () => apiClient.get('/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
@@ -84,6 +84,7 @@ export const orderAPI = {
   getById: (id: number) => apiClient.get(`/orders/${id}`),
   create: (items: any[], paymentMethod: string = 'CASH_ON_DELIVERY', discountCode?: string) =>
     apiClient.post('/orders', { items, paymentMethod, discountCode }),
+  claim: (id: number) => apiClient.post(`/orders/${id}/claim`),
   updateStatus: (id: number, status: string) => apiClient.put(`/orders/${id}/status`, { status })
 }
 

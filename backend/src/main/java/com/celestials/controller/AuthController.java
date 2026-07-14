@@ -26,8 +26,9 @@ public class AuthController {
     public ResponseEntity<?> register(@RequestBody Map<String,String> body){
         try {
             String username = body.get("username");
+            String email = body.get("email");
             String password = body.get("password");
-            Map<String,String> result = authService.register(username, password);
+            Map<String,String> result = authService.register(username, email, password);
             return ResponseEntity.ok(result);
         } catch(IllegalArgumentException e){
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -57,7 +58,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
         }
         try {
-            var user = authService.findByUsername(auth.getName());
+            var user = authService.findByUsernameOrEmail(auth.getName());
             return ResponseEntity.ok(Map.of("username", user.getUsername(), "role", user.getRole()));
         } catch(IllegalArgumentException e){
             return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));

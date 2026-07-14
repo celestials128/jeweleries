@@ -30,20 +30,44 @@ public class AuthService {
     }
 
     @Transactional
-    public Map<String, String> register(String username, String password) {
-        if (userRepository.findByUsername(username).isPresent()) {
+    public Map<String, String> register(String username, String email, String password) {
+        String normalizedUsername = username == null ? "" : username.trim();
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+
+        if (!StringUtils.hasText(normalizedUsername)) {
+            throw new IllegalArgumentException("Username-ul este obligatoriu");
+        }
+        if (!StringUtils.hasText(normalizedEmail)) {
+            throw new IllegalArgumentException("Email-ul este obligatoriu");
+        }
+        if (!normalizedEmail.contains("@") || !normalizedEmail.contains(".")) {
+            throw new IllegalArgumentException("Email invalid");
+        }
+        if (password == null || password.trim().length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
+
+        if (userRepository.findByUsername(normalizedUsername).isPresent()) {
             throw new IllegalArgumentException("Username already taken");
         }
-        User user = new User(username, passwordEncoder.encode(password), "ROLE_CUSTOMER");
-        if (StringUtils.hasText(username) && username.contains("@")) {
-            user.setEmail(username);
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+            throw new IllegalArgumentException("Email already used");
         }
+        if (userRepository.findByUsername(normalizedEmail).isPresent()) {
+            throw new IllegalArgumentException("Email already used");
+        }
+        if (userRepository.findByEmail(normalizedUsername).isPresent()) {
+            throw new IllegalArgumentException("Username already taken");
+        }
+
+        User user = new User(normalizedUsername, passwordEncoder.encode(password), "ROLE_CUSTOMER");
+        user.setEmail(normalizedEmail);
         userRepository.save(user);
         String emailAddr = resolveEmail(user);
         if (StringUtils.hasText(emailAddr)) {
-            try { emailService.sendWelcomeEmail(emailAddr, username); } catch (Exception ignored) {}
+            try { emailService.sendWelcomeEmail(emailAddr, user.getUsername()); } catch (Exception ignored) {}
         }
-        return Map.of("username", user.getUsername());
+        return Map.of("username", user.getUsername(), "email", user.getEmail());
     }
 
     public User findByUsername(String username) {
@@ -65,7 +89,7 @@ public class AuthService {
     public void changePassword(String username, String currentPassword, String newPassword) {
         if (username == null || username.isBlank()) throw new IllegalArgumentException("User not found");
         if (newPassword == null || newPassword.trim().length() < 6) throw new IllegalArgumentException("Password must be at least 6 characters");
-        User user = findByUsername(username);
+        User user = findByUsernameOrEmail(username);
         if (currentPassword == null || !validatePassword(currentPassword, user.getPassword())) {
             throw new IllegalArgumentException("invalid_credentials");
         }
@@ -121,4 +145,3 @@ public class AuthService {
         return null;
     }
 }
-

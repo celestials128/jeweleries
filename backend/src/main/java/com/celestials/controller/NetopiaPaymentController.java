@@ -54,7 +54,8 @@ public class NetopiaPaymentController {
         }
 
         String username = authentication.getName();
-        Optional<User> user = userRepository.findByUsername(username);
+        Optional<User> user = userRepository.findByUsername(username)
+                .or(() -> userRepository.findByEmail(username));
         return user.orElse(null);
     }
 }

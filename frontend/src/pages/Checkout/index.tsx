@@ -98,7 +98,7 @@ function CheckoutForm({ cartItems, grandTotal, discountApplied, shippingFee }: {
     setLoading(true)
     try {
       if (createAccount) {
-        await authAPI.register(billing.email, password)
+        await authAPI.register(billing.email, billing.email, password)
         const loginRes = await authAPI.login(billing.email, password)
         const token = loginRes.data.token
         const role = loginRes.data.role || 'ROLE_CUSTOMER'
