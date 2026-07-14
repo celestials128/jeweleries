@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Spinner, Badge, Pagination } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { authAPI, productAPI, productTypeAPI, uploadAPI, orderAPI, adminUserAPI, discountAPI, settingsAPI } from '../../services/api'
@@ -76,6 +77,29 @@ interface Order {
   items?: { productName: string; quantity: number; price: number }[]
 }
 
+interface OrderDetailItem {
+  productId?: number
+  productName: string
+  quantity: number
+  price: number
+  lineTotal: number
+}
+
+interface OrderDetail {
+  id: number
+  status: string
+  paymentMethod?: string
+  paymentReference?: string
+  total: number
+  discountAmount?: number
+  discountCode?: string
+  userIdentity?: string
+  username?: string
+  email?: string
+  createdAt: string
+  items: OrderDetailItem[]
+}
+
 interface DiscountCode {
   id: number
   code: string
@@ -126,6 +150,8 @@ function getUploadedUrl(data: any): string | null {
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate()
+  const { id: orderDetailIdParam } = useParams<{ id?: string }>()
   const [products, setProducts] = useState<Product[]>([])
   const [types, setTypes] = useState<ProductType[]>([])
   const [newTypeName, setNewTypeName] = useState('')
@@ -147,8 +173,12 @@ export default function AdminDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [orderStatusFilter, setOrderStatusFilter] = useState('all')
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('all')
+  const [orderUserSearch, setOrderUserSearch] = useState('')
+  const [orderUserFilter, setOrderUserFilter] = useState('')
   const [orderSortBy, setOrderSortBy] = useState<'createdAt' | 'total' | 'id'>('createdAt')
   const [orderSortDirection, setOrderSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null)
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -183,6 +213,12 @@ export default function AdminDashboard() {
     fetchOrders()
   }, [])
 
+  useEffect(() => {
+    if (activeTab === 'orders' && users.length === 0) {
+      fetchUsers()
+    }
+  }, [activeTab])
+
   const fetchProducts = () => {
     productAPI.getAll()
       .then(res => setProducts(Array.isArray(res.data) ? res.data : []))
@@ -212,6 +248,19 @@ export default function AdminDashboard() {
         toast.error(message)
       })
       .finally(() => setOrdersLoading(false))
+  }
+
+  const fetchOrderDetail = async (id: number) => {
+    setOrderDetailLoading(true)
+    try {
+      const res = await orderAPI.getAdminById(id)
+      setOrderDetail(res.data)
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Nu s-au putut incarca detaliile comenzii.')
+      setOrderDetail(null)
+    } finally {
+      setOrderDetailLoading(false)
+    }
   }
 
   const fetchUsers = () => {
@@ -281,6 +330,31 @@ export default function AdminDashboard() {
       setDiscountCodes(prev => prev.map(dc => dc.id === id ? res.data : dc))
     } catch {
       toast.error('Eroare la actualizare.')
+    }
+  }
+
+  const handleUpdateOrderStatus = async (id: number, status: string) => {
+    try {
+      const res = await orderAPI.updateStatus(id, status)
+      setOrders(prev => prev.map(order => order.id === id ? { ...order, status: res.data.status } : order))
+      setOrderDetail(prev => prev && prev.id === id ? { ...prev, status: res.data.status } : prev)
+      toast.success('Status actualizat.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Eroare la actualizare status.')
+    }
+  }
+
+  const handleDeleteOrder = async (id: number) => {
+    if (!window.confirm('Stergi aceasta comanda?')) return
+    try {
+      await orderAPI.deleteAdmin(id)
+      setOrders(prev => prev.filter(order => order.id !== id))
+      if (orderDetail && orderDetail.id === id) {
+        navigate('/admin')
+      }
+      toast.success('Comanda stearsa.')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Eroare la stergere.')
     }
   }
 
@@ -591,7 +665,23 @@ export default function AdminDashboard() {
     const filtered = orders.filter(order => {
       const matchesStatus = orderStatusFilter === 'all' || order.status === orderStatusFilter
       const matchesPayment = orderPaymentFilter === 'all' || order.paymentMethod === orderPaymentFilter
-      return matchesStatus && matchesPayment
+      let matchesUser = true
+      if (orderUserFilter) {
+        const selectedUser = users.find(u => u.username === orderUserFilter)
+        const searchTerm = orderUserSearch.trim().toLowerCase()
+        const identity = (order.userIdentity || '').toLowerCase()
+        if (selectedUser) {
+          const usernameMatch = identity === selectedUser.username.toLowerCase()
+          const emailMatch = !!selectedUser.email && identity === selectedUser.email.toLowerCase()
+          matchesUser = usernameMatch || emailMatch
+        } else if (searchTerm) {
+          matchesUser = identity.includes(searchTerm)
+        }
+      } else if (orderUserSearch.trim()) {
+        const searchTerm = orderUserSearch.trim().toLowerCase()
+        matchesUser = (order.userIdentity || '').toLowerCase().includes(searchTerm)
+      }
+      return matchesStatus && matchesPayment && matchesUser
     })
 
     filtered.sort((a, b) => {
@@ -607,7 +697,20 @@ export default function AdminDashboard() {
     })
 
     return filtered
-  }, [orders, orderStatusFilter, orderPaymentFilter, orderSortBy, orderSortDirection])
+  }, [orders, users, orderStatusFilter, orderPaymentFilter, orderUserFilter, orderUserSearch, orderSortBy, orderSortDirection])
+
+  const filteredOrderUsers = useMemo(() => {
+    const term = orderUserSearch.trim().toLowerCase()
+    if (!term) return users
+    return users.filter(user =>
+      user.username.toLowerCase().includes(term) || (user.email || '').toLowerCase().includes(term)
+    )
+  }, [users, orderUserSearch])
+
+  const selectedOrderUser = useMemo(
+    () => users.find(user => user.username === orderUserFilter),
+    [users, orderUserFilter]
+  )
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -619,9 +722,141 @@ export default function AdminDashboard() {
     setCurrentPage(1)
   }, [nameFilter, categoryFilter, flagFilters, sortBy, sortDirection])
 
+  useEffect(() => {
+    if (!orderDetailIdParam) {
+      setOrderDetail(null)
+      return
+    }
+
+    const orderId = Number(orderDetailIdParam)
+    if (!Number.isFinite(orderId) || orderId <= 0) {
+      setOrderDetail(null)
+      return
+    }
+
+    fetchOrderDetail(orderId)
+  }, [orderDetailIdParam])
+
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return
     setCurrentPage(page)
+  }
+
+  if (orderDetailIdParam) {
+    return (
+      <Container fluid className="admin-dashboard py-5">
+        <div className="d-flex justify-content-between align-items-start gap-3 mb-4">
+          <div>
+            <h1 className="admin-title mb-1">Detalii comanda #{orderDetailIdParam}</h1>
+            <p className="text-muted mb-0">Informatii complete despre comanda si produsele asociate.</p>
+          </div>
+          <Button variant="outline-secondary" onClick={() => navigate('/admin')}>
+            Inapoi la comenzi
+          </Button>
+        </div>
+
+        {orderDetailLoading ? (
+          <div className="text-center py-5"><Spinner animation="border" /></div>
+        ) : !orderDetail ? (
+          <Alert variant="warning">Comanda nu a fost gasita.</Alert>
+        ) : (
+          <>
+            <Row className="g-4 mb-4">
+              <Col lg={4}>
+                <Card className="admin-card shadow-sm border-0 h-100">
+                  <Card.Header className="admin-card-header">
+                    <Card.Title className="mb-0">Comanda</Card.Title>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="mb-2"><strong>ID:</strong> #{orderDetail.id}</div>
+                    <div className="mb-2"><strong>Status:</strong> {orderDetail.status}</div>
+                    <div className="mb-2"><strong>Plata:</strong> {orderDetail.paymentMethod || '-'}</div>
+                    <div className="mb-2"><strong>Referinta plata:</strong> {orderDetail.paymentReference || '-'}</div>
+                    <div className="mb-2"><strong>Data:</strong> {new Date(orderDetail.createdAt).toLocaleString('ro-RO')}</div>
+                    <div className="mb-2"><strong>Total:</strong> {Number(orderDetail.total).toFixed(2)} RON</div>
+                    <div className="mb-2"><strong>Discount:</strong> {orderDetail.discountCode ? `${orderDetail.discountCode} (-${Number(orderDetail.discountAmount || 0).toFixed(2)} RON)` : '-'}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col lg={4}>
+                <Card className="admin-card shadow-sm border-0 h-100">
+                  <Card.Header className="admin-card-header">
+                    <Card.Title className="mb-0">Client</Card.Title>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="mb-2"><strong>Identitate:</strong> {orderDetail.userIdentity || '-'}</div>
+                    <div className="mb-2"><strong>Username:</strong> {orderDetail.username || '-'}</div>
+                    <div className="mb-2"><strong>Email:</strong> {orderDetail.email || '-'}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col lg={4}>
+                <Card className="admin-card shadow-sm border-0 h-100">
+                  <Card.Header className="admin-card-header">
+                    <Card.Title className="mb-0">Actiuni</Card.Title>
+                  </Card.Header>
+                  <Card.Body>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Status comanda</Form.Label>
+                      <Form.Select
+                        value={orderDetail.status}
+                        onChange={e => handleUpdateOrderStatus(orderDetail.id, e.target.value)}
+                      >
+                        <option value="CREATED">CREATED</option>
+                        <option value="AWAITING_CASH_ON_DELIVERY">AWAITING_CASH_ON_DELIVERY</option>
+                        <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                        <option value="PAID">PAID</option>
+                        <option value="SHIPPED">SHIPPED</option>
+                        <option value="DELIVERED">DELIVERED</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                        <option value="PAYMENT_FAILED">PAYMENT_FAILED</option>
+                      </Form.Select>
+                    </Form.Group>
+                    <Button variant="outline-danger" className="w-100" onClick={() => handleDeleteOrder(orderDetail.id)}>
+                      Sterge comanda
+                    </Button>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+
+            <Card className="admin-card shadow-sm border-0">
+              <Card.Header className="admin-card-header">
+                <Card.Title className="mb-0">Produse comandate ({orderDetail.items.length})</Card.Title>
+              </Card.Header>
+              <Card.Body className="table-responsive">
+                {orderDetail.items.length === 0 ? (
+                  <p className="text-muted text-center py-4">Nu exista produse in comanda.</p>
+                ) : (
+                  <Table hover className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>Produs</th>
+                        <th>ID produs</th>
+                        <th>Cantitate</th>
+                        <th>Pret unitar</th>
+                        <th>Total linie</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orderDetail.items.map(item => (
+                        <tr key={`${item.productId || item.productName}-${item.productName}`}>
+                          <td><strong>{item.productName}</strong></td>
+                          <td>{item.productId ?? <span className="text-muted">-</span>}</td>
+                          <td>{item.quantity}</td>
+                          <td>{Number(item.price || 0).toFixed(2)} RON</td>
+                          <td>{Number(item.lineTotal || 0).toFixed(2)} RON</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Card.Body>
+            </Card>
+          </>
+        )}
+      </Container>
+    )
   }
 
   return (
@@ -1142,6 +1377,30 @@ export default function AdminDashboard() {
                       <option value="CARD_ONLINE">Card online</option>
                       <option value="CASH_ON_DELIVERY">Cash on delivery</option>
                     </Form.Select>
+                    <div>
+                      <Form.Control
+                        value={orderUserSearch}
+                        onChange={e => setOrderUserSearch(e.target.value)}
+                        placeholder="Filtreaza user"
+                      />
+                      <Form.Select
+                        className="mt-2"
+                        value={orderUserFilter}
+                        onChange={e => setOrderUserFilter(e.target.value)}
+                      >
+                        <option value="">Toti utilizatorii</option>
+                        {selectedOrderUser && !filteredOrderUsers.some(u => u.id === selectedOrderUser.id) && (
+                          <option value={selectedOrderUser.username}>
+                            {selectedOrderUser.username}{selectedOrderUser.email ? ` (${selectedOrderUser.email})` : ''}
+                          </option>
+                        )}
+                        {filteredOrderUsers.map(user => (
+                          <option key={user.id} value={user.username}>
+                            {user.username}{user.email ? ` (${user.email})` : ''}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
                     <Form.Select value={orderSortBy} onChange={e => setOrderSortBy(e.target.value as 'createdAt' | 'total' | 'id')}>
                       <option value="createdAt">Sort by date</option>
                       <option value="total">Sort by total</option>
@@ -1167,6 +1426,7 @@ export default function AdminDashboard() {
                         <th>Total</th>
                         <th>Discount</th>
                         <th>Data</th>
+                        <th>Actiuni</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1181,7 +1441,22 @@ export default function AdminDashboard() {
                               {order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Cash la livrare' : 'Card online'}
                             </Badge>
                           </td>
-                          <td>{order.status}</td>
+                          <td>
+                            <Form.Select
+                              size="sm"
+                              value={order.status}
+                              onChange={e => handleUpdateOrderStatus(order.id, e.target.value)}
+                            >
+                              <option value="CREATED">CREATED</option>
+                              <option value="AWAITING_CASH_ON_DELIVERY">AWAITING_CASH_ON_DELIVERY</option>
+                              <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                              <option value="PAID">PAID</option>
+                              <option value="SHIPPED">SHIPPED</option>
+                              <option value="DELIVERED">DELIVERED</option>
+                              <option value="CANCELLED">CANCELLED</option>
+                              <option value="PAYMENT_FAILED">PAYMENT_FAILED</option>
+                            </Form.Select>
+                          </td>
                           <td>{Number(order.total).toFixed(2)} RON</td>
                           <td>
                             {order.discountCode ? (
@@ -1194,6 +1469,16 @@ export default function AdminDashboard() {
                             ) : <span style={{ color: '#d1d5db' }}>—</span>}
                           </td>
                           <td>{new Date(order.createdAt).toLocaleString('ro-RO')}</td>
+                          <td>
+                            <div className="d-flex gap-2 flex-wrap">
+                              <Button size="sm" variant="outline-primary" onClick={() => navigate(`/admin/orders/${order.id}`)}>
+                                Detalii
+                              </Button>
+                              <Button size="sm" variant="outline-danger" onClick={() => handleDeleteOrder(order.id)}>
+                                Sterge
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

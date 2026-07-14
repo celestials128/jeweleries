@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -46,7 +47,14 @@ public class AuthController {
                 return ResponseEntity.status(401).body(Map.of("error", INVALID_CREDENTIALS_MESSAGE));
             }
             String token = jwtUtil.generateToken(username);
-            return ResponseEntity.ok(Map.of("token", token, "role", user.getRole(), "username", username));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("token", token);
+            result.put("role", user.getRole());
+            result.put("username", username);
+            if (user.getEmail() != null) {
+                result.put("email", user.getEmail());
+            }
+            return ResponseEntity.ok(result);
         } catch(IllegalArgumentException e){
             return ResponseEntity.status(401).body(Map.of("error", INVALID_CREDENTIALS_MESSAGE));
         }
@@ -59,7 +67,13 @@ public class AuthController {
         }
         try {
             var user = authService.findByUsernameOrEmail(auth.getName());
-            return ResponseEntity.ok(Map.of("username", user.getUsername(), "role", user.getRole()));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("username", user.getUsername());
+            if (user.getEmail() != null) {
+                result.put("email", user.getEmail());
+            }
+            result.put("role", user.getRole());
+            return ResponseEntity.ok(result);
         } catch(IllegalArgumentException e){
             return ResponseEntity.status(401).body(Map.of("error", "unauthorized"));
         }

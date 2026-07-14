@@ -55,6 +55,7 @@ function AppContent({
           <div key={location.key} className="route-view">
             <Routes>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/orders/:id" element={<AdminDashboard />} />
               <Route path="/admin/blog" element={<AdminBlog />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
@@ -100,6 +101,14 @@ function AppContent({
               }
             />
             <Route
+              path="/admin/orders/:id"
+              element={
+                <ProtectedRoute isAdmin={isAdmin}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/blog"
               element={
                 <ProtectedRoute isAdmin={isAdmin}>
@@ -126,6 +135,8 @@ export default function App(){
     authAPI.me()
       .then(res => {
         const role = res.data?.role || ''
+        if (res.data?.username) localStorage.setItem('username', res.data.username)
+        if (res.data?.email) localStorage.setItem('email', res.data.email)
         localStorage.setItem('role', role)
         setIsLoggedIn(true)
         setIsAdmin(role === 'ROLE_ADMIN')
@@ -135,6 +146,7 @@ export default function App(){
         localStorage.removeItem('token')
         localStorage.removeItem('role')
         localStorage.removeItem('username')
+        localStorage.removeItem('email')
         setIsLoggedIn(false)
         setIsAdmin(false)
       })

@@ -81,6 +81,8 @@ export const uploadAPI = {
 export const orderAPI = {
   getAll: () => apiClient.get('/orders'),
   getAllAdmin: () => apiClient.get('/admin/orders'),
+  getAdminById: (id: number) => apiClient.get(`/admin/orders/${id}`),
+  deleteAdmin: (id: number) => apiClient.delete(`/admin/orders/${id}`),
   getById: (id: number) => apiClient.get(`/orders/${id}`),
   create: (items: any[], paymentMethod: string = 'CASH_ON_DELIVERY', discountCode?: string) =>
     apiClient.post('/orders', { items, paymentMethod, discountCode }),

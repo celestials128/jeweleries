@@ -69,6 +69,29 @@ function CheckoutForm({ cartItems, grandTotal, discountApplied, shippingFee }: {
     })
   }, [])
 
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const storedEmail = localStorage.getItem('email')
+    if (storedEmail) {
+      setBilling(prev => prev.email ? prev : { ...prev, email: storedEmail })
+      return
+    }
+
+    authAPI.me()
+      .then(res => {
+        const email = res.data?.email || res.data?.username || ''
+        if (email) {
+          setBilling(prev => prev.email ? prev : { ...prev, email })
+          if (res.data?.email) localStorage.setItem('email', res.data.email)
+          if (res.data?.username) localStorage.setItem('username', res.data.username)
+          window.dispatchEvent(new Event('auth:updated'))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const handleBillingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
     setBilling(prev => ({ ...prev, [name]: value }))

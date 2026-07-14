@@ -27,10 +27,12 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
   const [cartItemCount, setCartItemCount] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [accountIdentity, setAccountIdentity] = useState(() => localStorage.getItem('username') || localStorage.getItem('email') || '')
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
 
   const handleLogout = () => {
     localStorage.clear()
+    setAccountIdentity('')
     onLogout()
     navigate('/')
   }
@@ -45,6 +47,19 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
     productTypeAPI.getAll()
       .then(res => setProductTypes(Array.isArray(res.data) ? res.data : []))
       .catch(() => setProductTypes([]))
+  }, [])
+
+  useEffect(() => {
+    const refreshIdentity = () => {
+      setAccountIdentity(localStorage.getItem('username') || localStorage.getItem('email') || '')
+    }
+    refreshIdentity()
+    window.addEventListener('auth:updated', refreshIdentity)
+    window.addEventListener('storage', refreshIdentity)
+    return () => {
+      window.removeEventListener('auth:updated', refreshIdentity)
+      window.removeEventListener('storage', refreshIdentity)
+    }
   }, [])
 
   useEffect(() => {
@@ -128,6 +143,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
               >
                 <span className="account-icon">👤</span>
                 <span>Contul meu</span>
+                {accountIdentity && <span className="account-identity">{accountIdentity}</span>}
                 <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
               </button>
               {accountMenuOpen && (
@@ -190,6 +206,7 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
               >
                 <span className="account-icon">👤</span>
                 <span>Contul meu</span>
+                {accountIdentity && <span className="account-identity">{accountIdentity}</span>}
                 <span className="account-caret">{accountMenuOpen ? '⌃' : '⌄'}</span>
               </button>
 
@@ -238,6 +255,11 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }: NavbarProps) {
 
         <div className={`mobile-menu-panel ${mobileMenuOpen ? 'open' : ''}`}>
           <Nav className="mobile-menu-links">
+            {accountIdentity && (
+              <div className="mobile-account-identity">
+                Conectat ca <strong>{accountIdentity}</strong>
+              </div>
+            )}
             {!isAdmin && <Nav.Link as={Link} to="/products?section=noutati" onClick={() => setMobileMenuOpen(false)}>Noutati</Nav.Link>}
             {!isAdmin && productTypes.map(type => (
               <Nav.Link

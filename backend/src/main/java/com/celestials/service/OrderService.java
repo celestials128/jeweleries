@@ -178,6 +178,18 @@ public class OrderService {
         return orderRepository.findAllWithUserOrderByCreatedAtDesc();
     }
 
+    public Order getAdminOrderDetails(Long orderId) {
+        return orderRepository.findDetailedById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+    }
+
+    @Transactional
+    public void deleteOrder(Long orderId) {
+        Order order = orderRepository.findDetailedById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        orderRepository.delete(order);
+    }
+
     @Transactional
     public void markCanceledByPaymentReference(String paymentReference){
         if(paymentReference == null || paymentReference.isBlank()) return;

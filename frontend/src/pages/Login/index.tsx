@@ -60,16 +60,23 @@ export default function Login() {
         const loginRes = await authAPI.login(username.trim(), password)
         localStorage.setItem('token', loginRes.data.token)
         localStorage.setItem('username', loginRes.data.username || username.trim())
+        if (loginRes.data.email) {
+          localStorage.setItem('email', loginRes.data.email)
+        }
         if (loginRes.data.role) {
           localStorage.setItem('role', loginRes.data.role)
         } else {
           localStorage.removeItem('role')
         }
+        window.dispatchEvent(new Event('auth:updated'))
         setTimeout(() => { window.location.href = '/' }, 400)
       } else {
         const res = await authAPI.login(username, password)
         localStorage.setItem('token', res.data.token)
         localStorage.setItem('username', res.data.username || username)
+        if (res.data.email) {
+          localStorage.setItem('email', res.data.email)
+        }
         let isAdmin = false
         if (res.data.role) {
           localStorage.setItem('role', res.data.role)
@@ -77,6 +84,7 @@ export default function Login() {
         } else {
           localStorage.removeItem('role')
         }
+        window.dispatchEvent(new Event('auth:updated'))
         toast.success('Autentificare reusita.')
         setTimeout(() => { window.location.href = isAdmin ? '/admin' : '/' }, 350)
       }

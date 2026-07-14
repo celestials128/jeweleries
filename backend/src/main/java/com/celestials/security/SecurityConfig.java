@@ -106,7 +106,7 @@ public class SecurityConfig {
             .filter(origin -> !origin.isBlank())
             .collect(Collectors.toList());
         config.setAllowedOriginPatterns(origins);
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(Arrays.asList(
             "Authorization",
             "Content-Type",

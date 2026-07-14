@@ -396,6 +396,20 @@
   color: #1e3a8a;
 }
 
+@media (max-width: 768px) {
+  .admin-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-tab-btn {
+    flex: 1 1 calc(50% - 8px);
+    padding: 9px 12px;
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
 /* ======= User Orders Panel ======= */
 .user-orders-panel {
   background: #f8fafc;
