@@ -42,6 +42,18 @@
   align-items: start;
 }
 
+.mobile-filters-toggle {
+  display: none;
+  width: 100%;
+  border: 1px solid #1e3a8a;
+  background: #fff;
+  color: #1e3a8a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
 /* ======= Filters sidebar (left, always visible) ======= */
 .products-filters {
   position: sticky;
@@ -276,9 +288,19 @@
   .products-layout {
     grid-template-columns: 1fr;
   }
+  .mobile-filters-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
   .products-filters {
     position: static;
     order: -1;
+    display: none;
+  }
+  .products-filters.open {
+    display: block;
   }
   .products-title { font-size: 24px; }
   .products-grid {

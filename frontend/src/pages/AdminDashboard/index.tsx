@@ -162,6 +162,8 @@ export default function AdminDashboard() {
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'users' | 'discounts' | 'settings'>('products')
+  const [productsFiltersOpen, setProductsFiltersOpen] = useState(false)
+  const [ordersFiltersOpen, setOrdersFiltersOpen] = useState(false)
 
   // Users tab state
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -1270,7 +1272,16 @@ export default function AdminDashboard() {
                 <p className="text-muted text-center py-4">No products yet. Create one to get started.</p>
               ) : (
                 <>
-                  <div className="table-toolbar mb-3">
+                  <button
+                    type="button"
+                    className="mobile-filters-toggle admin-mobile-filters-toggle"
+                    onClick={() => setProductsFiltersOpen(prev => !prev)}
+                    aria-expanded={productsFiltersOpen}
+                    aria-controls="admin-products-filters"
+                  >
+                    ☰ Filtre
+                  </button>
+                  <div id="admin-products-filters" className={`table-toolbar mb-3 mobile-filters-panel ${productsFiltersOpen ? 'open' : ''}`}>
                     <Form.Control
                       type="text"
                       placeholder="Filter by name..."
@@ -1410,7 +1421,16 @@ export default function AdminDashboard() {
                 <p className="text-muted text-center py-4">No orders yet.</p>
               ) : (
                 <>
-                  <div className="table-toolbar mb-3">
+                  <button
+                    type="button"
+                    className="mobile-filters-toggle admin-mobile-filters-toggle"
+                    onClick={() => setOrdersFiltersOpen(prev => !prev)}
+                    aria-expanded={ordersFiltersOpen}
+                    aria-controls="admin-orders-filters"
+                  >
+                    ☰ Filtre
+                  </button>
+                  <div id="admin-orders-filters" className={`table-toolbar mb-3 mobile-filters-panel ${ordersFiltersOpen ? 'open' : ''}`}>
                     <Form.Select value={orderStatusFilter} onChange={e => setOrderStatusFilter(e.target.value)}>
                       <option value="all">All statuses</option>
                       <option value="AWAITING_CASH_ON_DELIVERY">Cash on delivery</option>

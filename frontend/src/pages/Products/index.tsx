@@ -75,6 +75,7 @@ export default function Products() {
   const [onlyHandmade, setOnlyHandmade] = useState(false)
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   useEffect(() => {
     if (_cache.types) return
@@ -285,8 +286,17 @@ export default function Products() {
         </div>
 
         <div className="products-layout">
+          <button
+            type="button"
+            className="mobile-filters-toggle"
+            onClick={() => setFiltersOpen(prev => !prev)}
+            aria-expanded={filtersOpen}
+            aria-controls="products-filters-panel"
+          >
+            ☰ Filtre
+          </button>
           {/* Filters sidebar — left, always visible */}
-          <aside className="products-filters">
+          <aside id="products-filters-panel" className={`products-filters ${filtersOpen ? 'open' : ''}`}>
             <div className="filters-title">Filtre</div>
 
             <div className="filter-group">
